@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
@@ -21,8 +21,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
 } from '@/components/ui/sidebar';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/queries';
@@ -70,8 +68,7 @@ function UserMenu() {
 
 function NavMenu() {
   const pathname = usePathname();
-  const { setOpenMobile } = useSidebar();
-  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+  const isActive = (href: string) => isActivePath(pathname, href);
   return (
     <SidebarMenu className="gap-1">
       {NAV.map(({ href, label, icon: Icon }) => (
@@ -82,7 +79,7 @@ function NavMenu() {
             isActive={isActive(href)}
             className="relative gap-3 px-3 text-[15px] text-sidebar-foreground/80 hover:bg-white/5 hover:text-white data-[active=true]:bg-white/10 data-[active=true]:font-medium data-[active=true]:text-white data-[active=true]:before:absolute data-[active=true]:before:inset-y-2 data-[active=true]:before:left-0 data-[active=true]:before:w-1 data-[active=true]:before:rounded-r-full data-[active=true]:before:bg-sidebar-ring [&>svg]:size-5"
           >
-            <Link href={href} onClick={() => setOpenMobile(false)} aria-current={isActive(href) ? 'page' : undefined}>
+            <Link href={href} aria-current={isActive(href) ? 'page' : undefined}>
               <Icon aria-hidden />
               {label}
             </Link>
@@ -93,7 +90,60 @@ function NavMenu() {
   );
 }
 
-/** shadcn Sidebar: fixed on desktop, an off-canvas sheet behind a menu button on phones. */
+const isActivePath = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+
+/** Phones: avatar button in the top bar that opens the account menu (sign out). */
+function MobileAccountMenu() {
+  const { data: me } = useMe();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Account menu" className="rounded-full">
+          <Avatar className="size-8">
+            <AvatarFallback>{me?.name?.[0] ?? '·'}</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <span className="block font-medium text-foreground">{me?.name}</span>
+          <span className="block capitalize text-muted-foreground">{me?.role}</span>
+          <span className="block break-all text-muted-foreground">{me?.email}</span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={signOut}>
+          <LogOut aria-hidden />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Phones: thumb-reach tab bar for the three top-level screens. */
+function BottomNav() {
+  const pathname = usePathname();
+  return (
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
+      {NAV.map(({ href, label, icon: Icon }) => {
+        const active = isActivePath(pathname, href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active ? 'page' : undefined}
+            className="flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground transition-colors aria-[current=page]:text-primary"
+          >
+            <Icon className="size-5" aria-hidden />
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** shadcn Sidebar on desktop; top bar, account menu and bottom tabs on phones. */
 export function AppShell({ children }: { children: ReactNode }) {
   const { data: me } = useMe();
   return (
@@ -121,16 +171,23 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Sidebar>
 
       <SidebarInset className="min-w-0">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur md:hidden">
-          <SidebarTrigger aria-label="Open menu" />
-          <Separator orientation="vertical" className="h-5" />
-          <span className="font-semibold">Doctor Tracker</span>
-          {me?.role === 'staff' && <Badge variant="secondary" className="ml-auto">View only</Badge>}
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur md:hidden">
+          <Link href="/" className="flex items-center gap-2 font-heading font-semibold">
+            <span className="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden>
+              <Stethoscope className="size-4" />
+            </span>
+            Doctor Tracker
+          </Link>
+          <div className="flex items-center gap-2">
+            {me?.role === 'staff' && <Badge variant="secondary">View only</Badge>}
+            <MobileAccountMenu />
+          </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:py-10 lg:px-10">
+        <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 sm:px-6 md:pb-12 md:pt-10 lg:px-10">
           {me?.role === 'staff' && <Badge variant="secondary" className="mb-4 max-md:hidden">View-only account</Badge>}
           {children}
         </main>
+        <BottomNav />
       </SidebarInset>
     </SidebarProvider>
   );

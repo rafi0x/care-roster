@@ -1,6 +1,7 @@
 'use client';
 
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from 'recharts';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { formatShortDate } from '@/lib/format';
 import type { DashboardStats } from '@/lib/types';
@@ -29,11 +30,12 @@ export function TimelineChart({ data }: { data: DashboardStats['timeline'] }) {
 }
 
 export function PatientsPerDoctorChart({ data }: { data: DashboardStats['patientsPerDoctor'] }) {
+  const mobile = useIsMobile(); // narrower name axis leaves room for the bars on phones
   return (
     <ChartContainer config={perDoctorConfig} className="aspect-auto w-full" style={{ height: Math.max(data.length * 36, 120) }}>
       <BarChart accessibilityLayer data={data} layout="vertical" margin={{ top: 0, right: 36, bottom: 0, left: 0 }} barCategoryGap={8}>
         <XAxis type="number" hide />
-        <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={150} />
+        <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={mobile ? 104 : 150} tick={{ fontSize: mobile ? 11 : 12 }} />
         <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
         <Bar dataKey="count" fill="var(--color-count)" radius={[0, 5, 5, 0]} isAnimationActive={false}>
           <LabelList dataKey="count" position="right" className="fill-foreground font-medium" />

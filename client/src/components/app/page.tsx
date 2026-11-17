@@ -17,7 +17,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
         <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
         {subtitle && <p className="mt-1 text-muted-foreground">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="max-sm:w-full [&>*]:max-sm:w-full">{action}</div>}
     </header>
   );
 }

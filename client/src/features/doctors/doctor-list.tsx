@@ -82,7 +82,7 @@ export function DoctorList() {
       />
       <Panel>
         <FilterBar onClear={hasFilters ? reset : undefined}>
-          <SearchInput value={params.search ?? ''} onSearch={onSearch} placeholder="Search by name, specialization, hospital or email" />
+          <SearchInput value={params.search ?? ''} onSearch={onSearch} placeholder="Search name, specialty, hospital" />
           <FilterSelect label="Specialization" value={params.specialization} onChange={(specialization) => setParams({ specialization })} options={specializations} />
           <FilterSelect label="Hospital" value={params.hospital} onChange={(hospital) => setParams({ hospital })} options={hospitals} />
           <DateRange from={params.from} to={params.to} onChange={setParams} />

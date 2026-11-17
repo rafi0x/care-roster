@@ -15,56 +15,77 @@ import type { DashboardStats } from '@/lib/types';
 
 // Recharts is the heaviest dependency; load it only on this page, after the shell has painted.
 const chartFallback = () => <Skeleton className="h-[260px] w-full" />;
+const PatientsPerDoctorChart = dynamic(() => import('./charts').then((m) => m.PatientsPerDoctorChart), { ssr: false, loading: chartFallback });
 const TimelineChart = dynamic(() => import('./charts').then((m) => m.TimelineChart), { ssr: false, loading: chartFallback });
 
 const RANGES = [7, 30, 90];
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-3xl font-semibold tabular-nums">{value}</CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">{note}</CardContent>
-    </Card>
+    <div className="p-4 sm:p-6">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 font-heading text-4xl font-semibold tabular-nums tracking-tight">{value}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{note}</p>
+    </div>
   );
 }
 
-/** One row per condition: label, count and share, each linking to the filtered patient list. */
-function Conditions({ rows, total }: { rows: DashboardStats['patientsByCondition']; total: number }) {
+/** The ward board: one strip, each condition sized by its share of patients. */
+function WardBoard({ rows, total }: { rows: DashboardStats['patientsByCondition']; total: number }) {
   const counts = new Map(rows.map((r) => [r.condition, r.count]));
+  const items = CONDITIONS.map((c) => ({ ...c, count: counts.get(c.value) ?? 0 }));
+  const share = (n: number) => (total ? Math.round((n / total) * 100) : 0);
+
   return (
-    <ul className="space-y-4">
-      {CONDITIONS.map((c) => {
-        const count = counts.get(c.value) ?? 0;
-        const share = total ? Math.round((count / total) * 100) : 0;
-        return (
-          <li key={c.value}>
-            <Link href={`/patients?condition=${c.value}`} className="group block">
-              <span className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 group-hover:underline">
-                  <span className="size-2 rounded-full" style={{ background: c.color }} aria-hidden />
-                  {c.label}
-                </span>
-                <span className="tabular-nums text-muted-foreground">
-                  <span className="font-medium text-foreground">{formatNumber(count)}</span> · {share}%
-                </span>
+    <>
+      <div className="flex h-12 gap-0.5 overflow-hidden rounded-lg" role="img" aria-label={items.map((i) => `${i.label}: ${i.count}`).join(', ')}>
+        {items.filter((i) => i.count > 0).map((i) => (
+          <span key={i.value} style={{ flexGrow: i.count, background: i.color }} className="min-w-1 basis-0" />
+        ))}
+        {total === 0 && <span className="flex-1 bg-border" />}
+      </div>
+      <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+        {items.map((i) => (
+          <li key={i.value}>
+            <Link href={`/patients?condition=${i.value}`} className="group block">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-foreground">
+                <span className="size-2 rounded-full" style={{ background: i.color }} aria-hidden />
+                {i.label}
               </span>
-              <Progress value={share} className="mt-2 h-1.5" />
+              <span className="mt-0.5 block font-heading text-2xl font-semibold tabular-nums">
+                {formatNumber(i.count)}
+                <span className="ml-2 font-sans text-sm font-normal text-muted-foreground">{share(i.count)}%</span>
+              </span>
             </Link>
           </li>
-        );
-      })}
-    </ul>
+        ))}
+      </ul>
+    </>
   );
+}
+
+function BarList({ rows }: { rows: { label: string; count: number }[] }) {
+  const max = Math.max(...rows.map((r) => r.count), 1);
+  return (
+    <ul className="space-y-3">
+      {rows.map((r) => (
+        <li key={r.label}>
+          <div className="flex justify-between gap-4 text-sm">
+            <span className="truncate">{r.label}</span>
+            <span className="font-medium tabular-nums">{r.count}</span>
+          </div>
+          <Progress value={(r.count / max) * 100} className="mt-1.5 h-1.5" />
+        </li>
+      ))}
+    </ul>
+  ); 
 }
 
 function Section({ title, note, children, className = '' }: { title: string; note?: string; children: React.ReactNode; className?: string }) {
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle>
+        <CardTitle className="text-lg font-semibold">
           <h2>{title}</h2>
         </CardTitle>
         {note && <CardDescription>{note}</CardDescription>}
@@ -82,7 +103,7 @@ export function Dashboard() {
   const header = (
     <PageHeader
       title="Dashboard"
-      subtitle="An overview of doctors and patients."
+      subtitle="Who is under care, and with whom."
       action={
         <ToggleGroup
           type="single"
@@ -93,7 +114,7 @@ export function Dashboard() {
           className="bg-card"
         >
           {RANGES.map((d) => (
-            <ToggleGroupItem key={d} value={String(d)} className="px-3">
+            <ToggleGroupItem key={d} value={String(d)} className="px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
               {d} days
             </ToggleGroupItem>
           ))}
@@ -132,19 +153,31 @@ export function Dashboard() {
     <>
       {header}
       <div className={`space-y-4 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Stat label="Doctors" value={formatNumber(totals.doctors)} note={`${totals.newDoctors} new in ${days} days`} />
-          <Stat label="Patients" value={formatNumber(totals.patients)} note={`${totals.newPatients} new in ${days} days`} />
-          <Stat label="Critical now" value={formatNumber(totals.criticalPatients)} note={`${criticalShare}% of patients`} />
+        <Panel className="grid grid-cols-2 max-lg:[&>*:nth-child(-n+2)]:border-b max-lg:[&>*:nth-child(odd)]:border-r lg:grid-cols-4 lg:divide-x">
+          <Stat label="Doctors" value={formatNumber(totals.doctors)} note={`${totals.newDoctors} added in ${days} days`} />
+          <Stat label="Patients" value={formatNumber(totals.patients)} note={`${totals.newPatients} added in ${days} days`} />
+          <Stat label="Critical now" value={formatNumber(totals.criticalPatients)} note={`${criticalShare}% of all patients`} />
           <Stat label="Patients per doctor" value={perDoctor} note="Average caseload" />
-        </div>
+        </Panel>
+
+        <Section title="Patients by condition" note="Select a condition to see those patients.">
+          <WardBoard rows={data.patientsByCondition} total={totals.patients} />
+        </Section>
+
+        <Section title="New patients per day" note={`Last ${days} days`}>
+          <TimelineChart data={data.timeline} />
+        </Section>
 
         <div className="grid gap-4 lg:grid-cols-5">
-          <Section title="New patients" note={`Per day, last ${days} days`} className="lg:col-span-3">
-            <TimelineChart data={data.timeline} />
+          <Section title="Busiest doctors" note="Top 10 by number of patients" className="lg:col-span-3">
+            {data.patientsPerDoctor.length ? (
+              <PatientsPerDoctorChart data={data.patientsPerDoctor} />
+            ) : (
+              <p className="text-sm text-muted-foreground">No patients assigned yet.</p>
+            )}
           </Section>
-          <Section title="By condition" note="Select one to see those patients." className="lg:col-span-2">
-            <Conditions rows={data.patientsByCondition} total={totals.patients} />
+          <Section title="Doctors by specialization" className="lg:col-span-2">
+            <BarList rows={data.doctorsBySpecialization.map((s) => ({ label: s.specialization, count: s.count }))} />
           </Section>
         </div>
       </div>

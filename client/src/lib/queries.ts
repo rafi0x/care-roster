@@ -1,6 +1,7 @@
 'use client';
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { api } from './api';
 import { toQueryString, type QueryParams } from './query-string';
@@ -64,5 +65,16 @@ export function useWrite<TInput>(write: (input: TInput) => Promise<unknown>, suc
   });
 }
 
-/** Only admins can change data; staff accounts are read-only (enforced by the API too). */
-export const useCanWrite = () => useMe().data?.role === 'admin';
+/**
+ * Only admins can change data; staff accounts are read-only (enforced by the API too).
+ * False until after mount, so server HTML and the first client render agree (no hydration mismatch).
+ */
+export function useCanWrite() {
+  const role = useMe().data?.role;
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  return mounted && role === 'admin';
+}

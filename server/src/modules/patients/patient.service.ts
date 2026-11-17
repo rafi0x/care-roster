@@ -40,7 +40,7 @@ export async function listPatients(q: z.infer<typeof patientListQuery>) {
   // Page and count run in parallel; lean() skips document hydration for read-only lists.
   const [rows, total] = await Promise.all([
     Patient.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: q.order === 'asc' ? 1 : -1 })
       .skip((q.page - 1) * q.limit)
       .limit(q.limit)
       .populate('doctor', DOCTOR_FIELDS)

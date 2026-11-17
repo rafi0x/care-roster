@@ -19,6 +19,7 @@ export const doctorUpdateBody = doctorBody.partial().refine((v) => Object.keys(v
 export const doctorListQuery = listQuery.extend({
   specialization: z.string().trim().max(100).optional(),
   hospital: z.string().trim().max(150).optional(),
+  sort: z.enum(['createdAt', 'patients']).default('createdAt'),
 });
 
 /** One grouped, index-covered query for the whole page instead of a $lookup (or a query) per doctor. */
@@ -37,8 +38,30 @@ export async function listDoctors(q: z.infer<typeof doctorListQuery>) {
     ...dateRangeFilter(q.from, q.to),
     ...searchFilter(q.search),
   };
+  const dir = q.order === 'asc' ? 1 : -1;
+  const skip = (q.page - 1) * q.limit;
+
+  if (q.sort === 'patients') {
+    // Sorting by a computed count needs the count first. One indexed $count lookup per matching doctor.
+    // ponytail: counts every matching doctor before paging; precompute patientCount on Doctor if lists get huge.
+    const [rows, total] = await Promise.all([
+      Doctor.aggregate([
+        { $match: filter },
+        { $lookup: { from: 'patients', localField: '_id', foreignField: 'doctor', pipeline: [{ $count: 'n' }], as: 'pc' } },
+        { $addFields: { patientCount: { $ifNull: [{ $first: '$pc.n' }, 0] } } },
+        { $sort: { patientCount: dir, _id: 1 } },
+        { $skip: skip },
+        { $limit: q.limit },
+        { $project: { pc: 0, searchTokens: 0 } },
+      ]),
+      Doctor.countDocuments(filter),
+    ]);
+    const data = rows.map(({ _id, __v, ...rest }) => ({ id: String(_id), ...rest }));
+    return paginated(data, total, q.page, q.limit);
+  }
+
   const [rows, total] = await Promise.all([
-    Doctor.find(filter).sort({ createdAt: -1 }).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
+    Doctor.find(filter).sort({ createdAt: dir }).skip(skip).limit(q.limit).lean(),
     Doctor.countDocuments(filter),
   ]);
   const counts = await patientCounts(rows.map((r) => r._id));

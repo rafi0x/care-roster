@@ -5,13 +5,14 @@ export const objectId = z.string().refine(isValidObjectId, 'Invalid id');
 
 const day = z.iso.date('Use YYYY-MM-DD');
 
-/** Shared list query: pagination + search + created-date range. */
+/** Shared list query: pagination + search + created-date range + sort direction. */
 export const listQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().trim().max(100).optional(),
   from: day.optional(),
   to: day.optional(),
+  order: z.enum(['asc', 'desc']).default('desc'),
 });
 
 /** createdAt filter where `to` covers the whole day (UTC). */

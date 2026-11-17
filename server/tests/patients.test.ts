@@ -83,3 +83,15 @@ describe('/api/patients/:id', () => {
     await api.delete(`/api/patients/${p.id}`).expect(404);
   });
 });
+
+describe('GET /api/patients sorting', () => {
+  it('sorts by date added in either direction', async () => {
+    const doctor = await makeDoctor();
+    await makePatient(doctor.id, { name: 'Old Patient', createdAt: daysAgo(10) });
+    await makePatient(doctor.id, { name: 'New Patient', createdAt: daysAgo(1) });
+    const asc = await api.get('/api/patients?order=asc').expect(200);
+    expect(asc.body.data.map((p: { name: string }) => p.name)).toEqual(['Old Patient', 'New Patient']);
+    const desc = await api.get('/api/patients').expect(200);
+    expect(desc.body.data[0].name).toBe('New Patient');
+  });
+});

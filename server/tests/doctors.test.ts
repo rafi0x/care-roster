@@ -33,6 +33,27 @@ describe('POST /api/doctors', () => {
   });
 });
 
+describe('GET /api/doctors sorting', () => {
+  it('sorts by date added in either direction', async () => {
+    await makeDoctor({ name: 'Dr. Old', createdAt: daysAgo(10) });
+    await makeDoctor({ name: 'Dr. New', createdAt: daysAgo(1) });
+    const asc = await api.get('/api/doctors?order=asc').expect(200);
+    expect(asc.body.data.map((d: { name: string }) => d.name)).toEqual(['Dr. Old', 'Dr. New']);
+    const desc = await api.get('/api/doctors').expect(200);
+    expect(desc.body.data[0].name).toBe('Dr. New');
+  });
+
+  it('sorts by number of patients across pages', async () => {
+    const [a, b, c] = [await makeDoctor({ name: 'Dr. A' }), await makeDoctor({ name: 'Dr. B' }), await makeDoctor({ name: 'Dr. C' })];
+    for (const [d, n] of [[a, 1], [b, 3], [c, 2]] as const) for (let i = 0; i < n; i++) await makePatient(d.id);
+    const res = await api.get('/api/doctors?sort=patients&limit=2').expect(200);
+    expect(res.body.data.map((d: { name: string; patientCount: number }) => [d.name, d.patientCount])).toEqual([['Dr. B', 3], ['Dr. C', 2]]);
+    expect(res.body.meta.total).toBe(3);
+    const asc = await api.get('/api/doctors?sort=patients&order=asc').expect(200);
+    expect(asc.body.data[0].name).toBe('Dr. A');
+  });
+});
+
 describe('GET /api/doctors', () => {
   it('paginates newest first', async () => {
     for (let i = 0; i < 25; i++) await makeDoctor({ name: `Dr. Number ${i}`, createdAt: daysAgo(25 - i) });

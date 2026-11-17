@@ -1,0 +1,91 @@
+name: Build and Deploy API to VPS
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "server/**"
+      - ".github/workflows/prod-deploy-api.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate .env
+        run: |
+          envsubst "`printf '${%s} ' $(sh -c "env|cut -d'=' -f1")`" < ./.env.example > ./.env
+        env:
+          PORT: 4000
+          NODE_ENV: production
+
+          # Database
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+
+          # Session
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN_HOURS: 8
+
+          # Security
+          CLIENT_ORIGIN: ${{ vars.CLIENT_ORIGIN }}
+          TRUST_PROXY: ${{ vars.TRUST_PROXY || '1' }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build the project
+        run: npm run build
+
+      - name: Drop dev dependencies
+        run: npm prune --omit=dev
+
+      - name: Deploy Files to Production Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          rm: true
+          source: "server/dist,server/node_modules,server/.env,server/package.json,server/package-lock.json,server/ecosystem.config.js"
+          target: "/root/carerooster-api/"
+          strip_components: 1
+
+      - name: Start Production Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /root/carerooster-api/
+            pm2 stop carerooster-api || true
+            pm2 delete carerooster-api || true
+            pm2 start ecosystem.config.js --env production
+            pm2 save
+            pm2 status
+            sleep 5
+            curl -fsS http://127.0.0.1:4000/api/health

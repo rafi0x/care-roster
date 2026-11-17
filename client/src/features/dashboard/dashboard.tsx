@@ -114,7 +114,7 @@ export function Dashboard() {
           className="bg-card"
         >
           {RANGES.map((d) => (
-            <ToggleGroupItem key={d} value={String(d)} className="px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+            <ToggleGroupItem key={d} value={String(d)} className="px-3 max-sm:flex-1 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
               {d} days
             </ToggleGroupItem>
           ))}

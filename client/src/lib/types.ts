@@ -39,7 +39,8 @@ export interface Patient {
   phone: string;
   email?: string;
   condition: Condition;
-  doctor: { id: string; name: string; specialization: string };
+  /** null = unassigned (their doctor was deleted). */
+  doctor: { id: string; name: string; specialization: string } | null;
   createdAt: string;
 }
 

@@ -17,13 +17,15 @@ interface SelectProps {
   value: string | undefined;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
+  /** Extra classes for the trigger, e.g. `max-sm:hidden` for secondary filters that would crowd a phone row. */
+  className?: string;
 }
 
 // `min-h-8!` beats the touch-device 44px rule so every filter control matches the date button's height.
-export function FilterSelect({ label, value, onChange, options }: SelectProps) {
+export function FilterSelect({ label, value, onChange, options, className }: SelectProps) {
   return (
     <Select value={value || ALL} onValueChange={(v) => onChange(v === ALL ? '' : v)}>
-      <SelectTrigger aria-label={label} className="min-h-8! bg-card max-sm:order-1 max-sm:min-w-0 max-sm:flex-1 max-sm:basis-0">
+      <SelectTrigger aria-label={label} className={cn('min-h-8! bg-card max-sm:order-1 max-sm:min-w-0 max-sm:flex-1 max-sm:basis-0', className)}>
         {/* Short text when unfiltered so three selects fit one phone row */}
         <SelectValue>{value ? options.find((o) => o.value === value)?.label : label}</SelectValue>
       </SelectTrigger>

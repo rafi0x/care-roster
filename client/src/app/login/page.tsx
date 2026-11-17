@@ -14,7 +14,7 @@ export default function LoginPage() {
           <span className="mx-auto mb-2 grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground" aria-hidden>
             <Stethoscope className="size-5" />
           </span>
-          <CardTitle className="text-xl">Doctor Tracker</CardTitle>
+          <CardTitle className="text-xl">CareRoster</CardTitle>
           <CardDescription>Sign in to manage doctors and patients.</CardDescription>
         </CardHeader>
         <CardContent>

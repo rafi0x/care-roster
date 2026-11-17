@@ -6,7 +6,7 @@
 
 /*
  * Theme. shadcn/ui components read the semantic tokens in :root (background, primary, border, sidebar…);
- * they are mapped here to the Doctor Tracker palette, so every component is on-brand without per-component overrides.
+ * they are mapped here to the CareRoster palette, so every component is on-brand without per-component overrides.
  * Condition colours follow hospital triage convention and are the only saturated hues in the UI.
  */
 @theme {

@@ -1,9 +1,9 @@
 'use client';
 
-import { ChevronsUpDown, LayoutDashboard, LogOut, Stethoscope, Users } from 'lucide-react';
+import { ChevronsUpDown, LayoutDashboard, LogOut, Search, Stethoscope, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/sidebar';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/queries';
+import { CommandPalette } from './command-palette';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -146,21 +147,44 @@ function BottomNav() {
 /** shadcn Sidebar on desktop; top bar, account menu and bottom tabs on phones. */
 export function AppShell({ children }: { children: ReactNode }) {
   const { data: me } = useMe();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <SidebarProvider>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} onSignOut={signOut} />
       <Sidebar>
         <SidebarHeader className="px-5 pb-2 pt-6">
           <Link href="/" className="flex items-center gap-3 font-heading text-lg font-semibold text-white">
             <span className="grid size-9 place-items-center rounded-xl bg-white/10" aria-hidden>
               <Stethoscope className="size-5" />
             </span>
-            Doctor Tracker
+            CareRoster
           </Link>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup className="px-3 pt-4">
             <SidebarGroupLabel className="px-3 text-xs uppercase tracking-wider text-sidebar-foreground/50">Menu</SidebarGroupLabel>
             <SidebarGroupContent>
+              <SidebarMenu className="mb-3">
+                <SidebarMenuItem>
+                  <SidebarMenuButton size="lg" onClick={() => setPaletteOpen(true)} className="gap-3 px-3 text-[15px] text-sidebar-foreground/70 hover:bg-white/5 hover:text-white [&>svg]:size-5">
+                    <Search aria-hidden />
+                    Search
+                    <kbd className="ml-auto rounded border border-white/15 px-1.5 py-0.5 text-[11px] font-sans text-sidebar-foreground/60">Ctrl K</kbd>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
               <NavMenu />
             </SidebarGroupContent>
           </SidebarGroup>
@@ -176,10 +200,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden>
               <Stethoscope className="size-4" />
             </span>
-            Doctor Tracker
+            CareRoster
           </Link>
           <div className="flex items-center gap-2">
             {me?.role === 'staff' && <Badge variant="secondary">View only</Badge>}
+            <Button variant="ghost" size="icon" aria-label="Search" onClick={() => setPaletteOpen(true)}>
+              <Search />
+            </Button>
             <MobileAccountMenu />
           </div>
         </header>

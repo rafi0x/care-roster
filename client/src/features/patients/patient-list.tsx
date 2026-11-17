@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { ConditionBadge } from '@/components/app/condition-badge';
 import { PhoneLink } from '@/components/app/phone-link';
+import { ExportButton } from '@/components/app/export-button';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { ConfirmDialog, FormDialog } from '@/components/app/dialogs';
 import { DateRange, FilterBar, FilterSelect, SortSelect } from '@/components/app/filters';
@@ -32,6 +33,16 @@ const SORT_OPTIONS = [
   { key: 'createdAt', order: 'desc', label: 'Newest first', short: 'Newest' },
   { key: 'createdAt', order: 'asc', label: 'Oldest first', short: 'Oldest' },
 ] as const;
+
+/** The patient's doctor as a link, or a muted "Unassigned" when their doctor was deleted. */
+const doctorLink = (p: Patient, extra = '') =>
+  p.doctor ? (
+    <Link href={`/doctors/${p.doctor.id}`} className={`${extra} text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary`}>
+      {p.doctor.name}
+    </Link>
+  ) : (
+    <span className="text-muted-foreground">Unassigned</span>
+  );
 
 const rowKey = (p: Patient) => p.id;
 const rowAccent = (p: Patient) => conditionMeta(p.condition).color;
@@ -82,13 +93,7 @@ export function PatientList({ doctorId, action }: Props) {
       <p className="text-sm text-muted-foreground">
         {p.age} yrs · {p.gender === 'other' ? 'Other' : p.gender === 'male' ? 'Male' : 'Female'}
       </p>
-      {!doctorId && (
-        <p className="text-sm">
-          <Link href={`/doctors/${p.doctor.id}`} className="font-medium text-primary underline decoration-primary/40 underline-offset-4">
-            {p.doctor.name}
-          </Link>
-        </p>
-      )}
+      {!doctorId && <p className="text-sm">{doctorLink(p, 'font-medium')}</p>}
       <div className="flex items-center justify-between pt-1 text-sm">
         <PhoneLink phone={p.phone} />
         <span className="text-xs text-muted-foreground">Added {formatDate(p.createdAt)}</span>
@@ -116,11 +121,7 @@ export function PatientList({ doctorId, action }: Props) {
         : [
             {
               header: 'Doctor',
-              cell: (p: Patient) => (
-                <Link href={`/doctors/${p.doctor.id}`} className="text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
-                  {p.doctor.name}
-                </Link>
-              ),
+              cell: (p: Patient) => doctorLink(p),
             },
           ]),
       { header: 'Phone', cell: (p) => <PhoneLink phone={p.phone} /> },
@@ -154,8 +155,16 @@ export function PatientList({ doctorId, action }: Props) {
         <SearchInput value={params.search ?? ''} onSearch={onSearch} placeholder="Search name, phone, email" />
         <FilterSelect label="Condition" value={params.condition} onChange={(condition) => setParams({ condition })} options={CONDITIONS} />
         <FilterSelect label="Gender" value={params.gender} onChange={(gender) => setParams({ gender })} options={GENDERS} />
+        {!doctorId && <FilterSelect label="Doctor" value={params.doctor} onChange={(doctor) => setParams({ doctor })} options={[{ value: 'unassigned', label: 'Unassigned' }]} className="max-sm:hidden" />}
         <DateRange from={params.from} to={params.to} onChange={setParams} />
         <SortSelect value={`${sort.key}:${sort.order}`} onChange={setSort} options={SORT_OPTIONS} />
+        <ExportButton<Patient>
+          path={doctorId ? `/doctors/${doctorId}/patients` : '/patients'}
+          params={params}
+          filename="patients.csv"
+          header={['Name', 'Age', 'Gender', 'Condition', 'Doctor', 'Phone', 'Email', 'Added']}
+          row={(p) => [p.name, p.age, p.gender, conditionMeta(p.condition).label, p.doctor?.name ?? 'Unassigned', p.phone, p.email, p.createdAt.slice(0, 10)]}
+        />
         {action && <div className="ml-auto max-sm:order-2 max-sm:w-full [&>button]:max-sm:w-full">{action}</div>}
       </FilterBar>
 

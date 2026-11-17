@@ -8,7 +8,7 @@ const plex = IBM_Plex_Sans({ variable: '--font-plex', subsets: ['latin'], weight
 const bricolage = Bricolage_Grotesque({ variable: '--font-bricolage', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: { default: 'Doctor Tracker', template: '%s | Doctor Tracker' },
+  title: { default: 'CareRoster', template: '%s | CareRoster' },
   description: 'Manage doctors and their patients.',
 };
 

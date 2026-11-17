@@ -5,7 +5,7 @@ import { FieldGroup } from '@/components/ui/field';
 import { useSubmit } from '@/hooks/use-submit';
 import { api } from '@/lib/api';
 import { CONDITIONS, GENDERS } from '@/lib/conditions';
-import { useWrite } from '@/lib/queries';
+import { useDoctors, useWrite } from '@/lib/queries';
 import type { Patient } from '@/lib/types';
 
 type Props = { onDone: () => void } & (
@@ -13,14 +13,20 @@ type Props = { onDone: () => void } & (
   | { doctorId: string; patient?: never } // add under a doctor
 );
 
+// Radix Select items cannot have an empty value, so "no doctor" gets a sentinel.
+const UNASSIGNED = '__none__';
+
 export function PatientForm({ patient, doctorId, onDone }: Props) {
   const save = useWrite(
-    (body: Record<string, string>) =>
+    (body: Record<string, unknown>) =>
       patient ? api(`/patients/${patient.id}`, { method: 'PATCH', body }) : api(`/doctors/${doctorId}/patients`, { method: 'POST', body }),
     patient ? 'Patient updated' : 'Patient added',
   );
-  const { onSubmit, pending, error, fieldErrors } = useSubmit(async (values) => {
-    await save.mutateAsync(values);
+  // ponytail: first 100 doctors; switch to a searchable combobox if the roster outgrows one page.
+  const { data: doctors } = useDoctors({ limit: 100 });
+  const doctorOptions = [{ value: UNASSIGNED, label: 'Unassigned' }, ...(doctors?.data ?? []).map((d) => ({ value: d.id, label: d.name }))];
+  const { onSubmit, pending, error, fieldErrors } = useSubmit(async ({ doctor, ...values }) => {
+    await save.mutateAsync(patient ? { ...values, doctor: doctor === UNASSIGNED ? null : doctor } : values);
     onDone();
   });
 
@@ -34,6 +40,7 @@ export function PatientForm({ patient, doctorId, onDone }: Props) {
           <TextField label="Phone" name="phone" type="tel" defaultValue={patient?.phone} placeholder="+880 1811 000000" required error={fieldErrors.phone} />
           <TextField label="Email (optional)" name="email" type="email" defaultValue={patient?.email} error={fieldErrors.email} />
         </div>
+        {patient && <SelectField label="Doctor" name="doctor" options={doctorOptions} defaultValue={patient.doctor?.id ?? UNASSIGNED} error={fieldErrors.doctor} />}
         <SelectField label="Condition" name="condition" options={CONDITIONS} defaultValue={patient?.condition ?? 'stable'} required error={fieldErrors.condition} />
         <FormFooter error={error} pending={pending} submitLabel={patient ? 'Save changes' : 'Add patient'} onCancel={onDone} />
       </FieldGroup>

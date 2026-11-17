@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { PhoneLink } from '@/components/app/phone-link';
+import { ExportButton } from '@/components/app/export-button';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { FormDialog } from '@/components/app/dialogs';
 import { DateRange, FilterBar, FilterSelect, SortSelect } from '@/components/app/filters';
@@ -109,6 +110,13 @@ export function DoctorList() {
           <FilterSelect label="Hospital" value={params.hospital} onChange={(hospital) => setParams({ hospital })} options={hospitals} />
           <DateRange from={params.from} to={params.to} onChange={setParams} />
           <SortSelect value={`${sort.key}:${sort.order}`} onChange={setSort} options={SORT_OPTIONS} />
+          <ExportButton<Doctor>
+            path="/doctors"
+            params={params}
+            filename="doctors.csv"
+            header={['Name', 'Specialization', 'Hospital', 'Phone', 'Email', 'Patients', 'Added']}
+            row={(d) => [d.name, d.specialization, d.hospital, d.phone, d.email, d.patientCount, d.createdAt.slice(0, 10)]}
+          />
         </FilterBar>
 
         {error ? (

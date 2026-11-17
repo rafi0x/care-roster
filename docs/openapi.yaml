@@ -287,8 +287,8 @@ paths:
   /api/doctors/{id}/patients/{patientId}:
     delete:
       tags: [Doctors, Patients]
-      summary: Remove a patient from this doctor's list (admin)
-      description: Deletes the patient, but only if currently assigned to this doctor; otherwise 404.
+      summary: Unassign a patient from this doctor's list (admin)
+      description: Sets the patient's `doctor` to null; the patient record is kept. 404 if the patient is not currently assigned to this doctor.
       parameters:
         - $ref: '#/components/parameters/DoctorId'
         - name: patientId
@@ -296,7 +296,7 @@ paths:
           required: true
           schema: { $ref: '#/components/schemas/ObjectId' }
       responses:
-        '204': { description: Deleted }
+        '204': { description: Unassigned }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }

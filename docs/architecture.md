@@ -126,7 +126,7 @@ Indexes (all declared on the schemas; `autoIndex` is on except when `NODE_ENV=pr
 
 There is no `gender` index; the gender filter is applied on top of whatever index the planner picks.
 
-`patient.doctor` is nullable: `null` means unassigned. Deleting a doctor first sets `doctor: null` on all their patients, then deletes the doctor (no transaction, see ADR 0006). A patient can be reassigned (`PATCH /api/patients/:id` with `doctor`) or unassigned (`doctor: null`).
+`patient.doctor` is nullable: `null` means unassigned. Deleting a doctor first sets `doctor: null` on all their patients, then deletes the doctor (no transaction, see ADR 0006). A patient can be reassigned (`PATCH /api/patients/:id` with `doctor`) or unassigned (`doctor: null`). `DELETE /api/doctors/:id/patients/:patientId` does the same unassign and keeps the record; only `DELETE /api/patients/:id` removes it.
 
 ## 4. Request lifecycle
 

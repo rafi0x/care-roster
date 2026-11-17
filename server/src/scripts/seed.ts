@@ -22,7 +22,9 @@ const daysAgo = (max: number) => new Date(Date.now() - Math.random() * max * 86_
 const phone = (i: number) => `+8801${int(3, 9)}${String(10_000_000 + i).slice(-8)}`;
 
 async function main() {
-  if (env.NODE_ENV === 'production') throw new Error('Refusing to wipe a production database');
+  if (env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PRODUCTION !== 'true') {
+    throw new Error('Refusing to wipe a production database. Set SEED_ALLOW_PRODUCTION=true to seed demo data on purpose.');
+  }
   await mongoose.connect(env.MONGO_URI);
   await Promise.all([User.deleteMany({}), Doctor.deleteMany({}), Patient.deleteMany({})]);
 

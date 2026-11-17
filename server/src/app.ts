@@ -18,7 +18,7 @@ import { HttpError } from './utils/http-error';
 export function createApp({ globalLimit }: { globalLimit?: number } = {}) {
   const app = express();
 
-  app.set('trust proxy', 1); // behind the Next.js rewrite / a load balancer
+  app.set('trust proxy', env.TRUST_PROXY); // behind the Next.js rewrite and/or a reverse proxy
   app.use(helmet());
   app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
   app.use(express.json({ limit: '100kb' }));

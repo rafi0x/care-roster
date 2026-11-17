@@ -14,6 +14,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -44,9 +45,9 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
-          <Avatar className="size-8">
-            <AvatarFallback>{me?.name?.[0] ?? '·'}</AvatarFallback>
+        <SidebarMenuButton size="lg" className="gap-3 text-white hover:bg-white/5 hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white">
+          <Avatar className="size-9">
+            <AvatarFallback className="bg-white/15 text-white">{me?.name?.[0] ?? '·'}</AvatarFallback>
           </Avatar>
           <div className="grid min-w-0 flex-1 text-left leading-tight">
             <span className="truncate text-sm font-medium">{me?.name ?? ' '}</span>
@@ -72,10 +73,15 @@ function NavMenu() {
   const { setOpenMobile } = useSidebar();
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
   return (
-    <SidebarMenu>
+    <SidebarMenu className="gap-1">
       {NAV.map(({ href, label, icon: Icon }) => (
         <SidebarMenuItem key={href}>
-          <SidebarMenuButton asChild isActive={isActive(href)}>
+          <SidebarMenuButton
+            asChild
+            size="lg"
+            isActive={isActive(href)}
+            className="relative gap-3 px-3 text-[15px] text-sidebar-foreground/80 hover:bg-white/5 hover:text-white data-[active=true]:bg-white/10 data-[active=true]:font-medium data-[active=true]:text-white data-[active=true]:before:absolute data-[active=true]:before:inset-y-2 data-[active=true]:before:left-0 data-[active=true]:before:w-1 data-[active=true]:before:rounded-r-full data-[active=true]:before:bg-sidebar-ring [&>svg]:size-5"
+          >
             <Link href={href} onClick={() => setOpenMobile(false)} aria-current={isActive(href) ? 'page' : undefined}>
               <Icon aria-hidden />
               {label}
@@ -93,22 +99,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar>
-        <SidebarHeader className="p-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-white">
-            <span className="grid size-7 place-items-center rounded-md bg-white/10" aria-hidden>
-              <Stethoscope className="size-4" />
+        <SidebarHeader className="px-5 pb-2 pt-6">
+          <Link href="/" className="flex items-center gap-3 font-heading text-lg font-semibold text-white">
+            <span className="grid size-9 place-items-center rounded-xl bg-white/10" aria-hidden>
+              <Stethoscope className="size-5" />
             </span>
             Doctor Tracker
           </Link>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarGroup>
+          <SidebarGroup className="px-3 pt-4">
+            <SidebarGroupLabel className="px-3 text-xs uppercase tracking-wider text-sidebar-foreground/50">Menu</SidebarGroupLabel>
             <SidebarGroupContent>
               <NavMenu />
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarFooter>
+        <SidebarFooter className="border-t border-sidebar-border p-3">
           <UserMenu />
         </SidebarFooter>
       </Sidebar>

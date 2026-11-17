@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { daysAgo, loginAs, makeDoctor, makePatient } from './helpers';
+import { Doctor } from '../src/modules/doctors/doctor.model';
+import { Patient } from '../src/modules/patients/patient.model';
+import { daysAgo, loginAs, makeDoctor, makePatient, patientInput } from './helpers';
 
 describe('GET /api/dashboard/stats', () => {
   it('aggregates totals, per-doctor counts, breakdowns and a zero-filled timeline', async () => {
@@ -39,5 +41,29 @@ describe('GET /api/dashboard/stats', () => {
   it('validates the range', async () => {
     const api = await loginAs();
     await api.get('/api/dashboard/stats?days=9999').expect(400);
+  });
+});
+
+describe('dashboard cache', () => {
+  it('serves cached stats but reflects a write immediately', async () => {
+    const api = await loginAs();
+    const doc = await makeDoctor();
+    const first = await api.get('/api/dashboard/stats').expect(200);
+    await Doctor.collection.insertOne({ name: 'Dr. Direct', createdAt: new Date() }); // bypasses the API: still cached
+    const cached = await api.get('/api/dashboard/stats').expect(200);
+    expect(cached.body.data.totals.doctors).toBe(first.body.data.totals.doctors);
+
+    await api.post(`/api/doctors/${doc.id}/patients`).send(patientInput()).expect(201); // a write drops the cache
+    const fresh = await api.get('/api/dashboard/stats').expect(200);
+    expect(fresh.body.data.totals.doctors).toBe(first.body.data.totals.doctors + 1);
+  });
+
+  it('keeps unassigned patients out of the per-doctor ranking', async () => {
+    const api = await loginAs();
+    const doc = await makeDoctor();
+    await makePatient(doc._id);
+    await Patient.collection.insertOne({ name: 'No Doctor', doctor: null, condition: 'stable', createdAt: new Date() });
+    const res = await api.get('/api/dashboard/stats').expect(200);
+    expect(res.body.data.patientsPerDoctor).toHaveLength(1);
   });
 });

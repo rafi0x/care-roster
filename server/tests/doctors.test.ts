@@ -137,14 +137,26 @@ describe('/api/doctors/:id', () => {
     expect((await api.get('/api/doctors?search=before')).body.meta.total).toBe(0);
   });
 
-  it('deletes a doctor together with their patients', async () => {
+  it('deletes a doctor and keeps their patients as unassigned', async () => {
     const doc = await makeDoctor();
     const other = await makeDoctor();
-    await makePatient(doc._id);
+    const mine = await makePatient(doc._id);
     await makePatient(other._id);
     await api.delete(`/api/doctors/${doc.id}`).expect(204);
     await api.get(`/api/doctors/${doc.id}`).expect(404);
-    expect(await Patient.countDocuments()).toBe(1);
+    expect(await Patient.countDocuments()).toBe(2);
+
+    const unassigned = await api.get('/api/patients?doctor=unassigned').expect(200);
+    expect(unassigned.body.data.map((p: { id: string; doctor: unknown }) => [p.id, p.doctor])).toEqual([[mine.id, null]]);
+  });
+
+  it('lets an unassigned patient be given a new doctor', async () => {
+    const gone = await makeDoctor();
+    const patient = await makePatient(gone._id);
+    await api.delete(`/api/doctors/${gone.id}`).expect(204);
+    const next = await makeDoctor();
+    const res = await api.patch(`/api/patients/${patient.id}`).send({ doctor: next.id }).expect(200);
+    expect(res.body.data.doctor).toMatchObject({ id: next.id });
   });
 });
 
@@ -181,12 +193,26 @@ describe('/api/doctors/:id/patients', () => {
   });
 });
 
+describe('stable pagination', () => {
+  it('never repeats or skips a doctor when createdAt timestamps collide', async () => {
+    const at = daysAgo(1);
+    for (let i = 0; i < 12; i++) await makeDoctor({ createdAt: at });
+    const ids: string[] = [];
+    for (const page of [1, 2, 3]) {
+      const res = await api.get(`/api/doctors?limit=5&page=${page}`).expect(200);
+      ids.push(...res.body.data.map((d: { id: string }) => d.id));
+    }
+    expect(ids).toHaveLength(12);
+    expect(new Set(ids).size).toBe(12);
+  });
+});
+
 describe('query plans', () => {
   it('answers search and filtered lists from indexes, never a collection scan', async () => {
     for (let i = 0; i < 30; i++) await makeDoctor();
 
     const plan = async (filter: object) =>
-      JSON.stringify(await Doctor.find(filter).sort({ createdAt: -1 }).limit(10).explain('queryPlanner'));
+      JSON.stringify(await Doctor.find(filter).sort({ createdAt: -1, _id: -1 }).limit(10).explain('queryPlanner'));
 
     for (const filter of [searchFilter('ali'), { specialization: 'Cardiology' }, { hospital: 'City Hospital' }, {}]) {
       const p = await plan(filter);

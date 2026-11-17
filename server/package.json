@@ -1,5 +1,5 @@
 {
-  "name": "doctor-tracker-server",
+  "name": "carerooster-server",
   "version": "1.0.0",
   "scripts": {
     "test": "vitest run",
@@ -8,7 +8,9 @@
     "start": "node dist/server.js",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "seed": "tsx src/scripts/seed.ts"
+    "seed": "tsx src/scripts/seed.ts",
+    "db:indexes": "tsx src/scripts/db-indexes.ts",
+    "db:explain": "tsx src/scripts/db-explain.ts"
   },
   "type": "commonjs",
   "dependencies": {

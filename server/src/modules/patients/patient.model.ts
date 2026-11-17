@@ -13,7 +13,7 @@ const patientSchema = new Schema(
     phone: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true },
     condition: { type: String, required: true, enum: CONDITIONS },
-    doctor: { type: Schema.Types.ObjectId, ref: 'Doctor', required: true },
+    doctor: { type: Schema.Types.ObjectId, ref: 'Doctor', default: null }, // null = unassigned (e.g. their doctor was deleted)
     searchTokens: { type: [String], select: false },
   },
   { timestamps: true },
@@ -21,9 +21,10 @@ const patientSchema = new Schema(
 
 patientSchema.set('toJSON', toJSON);
 
-patientSchema.index({ createdAt: -1 });
-patientSchema.index({ doctor: 1, createdAt: -1 }); // a doctor's patient list + per-doctor counts
-patientSchema.index({ condition: 1, createdAt: -1 });
+// Lists sort by (createdAt, _id) so pages stay stable when timestamps collide.
+patientSchema.index({ createdAt: -1, _id: -1 });
+patientSchema.index({ doctor: 1, createdAt: -1, _id: -1 }); // a doctor's patient list + per-doctor counts
+patientSchema.index({ condition: 1, createdAt: -1, _id: -1 });
 patientSchema.index({ searchTokens: 1 });
 
 export const patientSearchTokens = (p: { name?: string; phone?: string; email?: string | null }) =>

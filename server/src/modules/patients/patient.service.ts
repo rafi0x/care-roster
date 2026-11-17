@@ -17,30 +17,31 @@ export const patientBody = z.object({
 });
 
 export const patientUpdateBody = patientBody
-  .extend({ doctor: objectId })
+  .extend({ doctor: objectId.nullable() }) // null = unassign
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
 
 export const patientListQuery = listQuery.extend({
   condition: z.enum(CONDITIONS).optional(),
   gender: z.enum(GENDERS).optional(),
-  doctor: objectId.optional(),
+  doctor: z.union([objectId, z.literal('unassigned')]).optional(),
 });
 
 const DOCTOR_FIELDS = 'name specialization';
 
 export async function listPatients(q: z.infer<typeof patientListQuery>) {
   const filter = {
-    ...(q.doctor && { doctor: q.doctor }),
+    ...(q.doctor && { doctor: q.doctor === 'unassigned' ? null : q.doctor }),
     ...(q.condition && { condition: q.condition }),
     ...(q.gender && { gender: q.gender }),
     ...dateRangeFilter(q.from, q.to),
     ...searchFilter(q.search),
   };
+  const dir = q.order === 'asc' ? 1 : -1;
   // Page and count run in parallel; lean() skips document hydration for read-only lists.
   const [rows, total] = await Promise.all([
     Patient.find(filter)
-      .sort({ createdAt: q.order === 'asc' ? 1 : -1 })
+      .sort({ createdAt: dir, _id: dir })
       .skip((q.page - 1) * q.limit)
       .limit(q.limit)
       .populate('doctor', DOCTOR_FIELDS)

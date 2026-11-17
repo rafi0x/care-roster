@@ -65,3 +65,10 @@ describe('auth', () => {
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 });
+
+describe('GET /api/health', () => {
+  it('reports ready while the database answers', async () => {
+    const res = await request(app).get('/api/health').expect(200);
+    expect(res.body.status).toBe('ok');
+  });
+});

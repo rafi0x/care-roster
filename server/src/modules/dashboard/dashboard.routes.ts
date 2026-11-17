@@ -14,10 +14,24 @@ const perDay = (since: Date) => [
   { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
 ];
 
+/**
+ * The stats are several full-collection groupings, but they only change when data changes. Cache the response per
+ * range and drop everything on any successful write (see `invalidateDashboard`, called from app.ts), with a TTL as a
+ * safety net. In-memory: with more than one API instance, move this to Redis or accept up to TTL staleness.
+ */
+const TTL_MS = 60_000;
+const cache = new Map<number, { at: number; body: unknown }>();
+export const invalidateDashboard = () => cache.clear();
+
 export const dashboardRouter = Router();
 
 dashboardRouter.get('/stats', async (req, res) => {
   const { days } = statsQuery.parse(req.query);
+  const hit = cache.get(days);
+  if (hit && Date.now() - hit.at < TTL_MS) {
+    res.json(hit.body);
+    return;
+  }
   const today = new Date(isoDay(new Date())); // UTC midnight
   const since = new Date(today.getTime() - (days - 1) * DAY);
 
@@ -28,6 +42,7 @@ dashboardRouter.get('/stats', async (req, res) => {
       Patient.estimatedDocumentCount(),
       Patient.countDocuments({ condition: 'critical' }),
       Patient.aggregate([
+        { $match: { doctor: { $ne: null } } }, // unassigned patients are not a doctor's caseload
         { $group: { _id: '$doctor', count: { $sum: 1 } } },
         { $sort: { count: -1, _id: 1 } },
         { $limit: 10 }, // join only the 10 rows we display, not every doctor
@@ -58,7 +73,7 @@ dashboardRouter.get('/stats', async (req, res) => {
   });
   const sum = (key: 'patients' | 'doctors') => timeline.reduce((n, t) => n + t[key], 0);
 
-  res.json({
+  const body = {
     data: {
       totals: { doctors, patients, newDoctors: sum('doctors'), newPatients: sum('patients'), criticalPatients },
       patientsPerDoctor: perDoctor,
@@ -66,5 +81,7 @@ dashboardRouter.get('/stats', async (req, res) => {
       doctorsBySpecialization: bySpecialization,
       timeline,
     },
-  });
+  };
+  cache.set(days, { at: Date.now(), body });
+  res.json(body);
 });

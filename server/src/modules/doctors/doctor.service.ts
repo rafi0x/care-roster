@@ -61,7 +61,7 @@ export async function listDoctors(q: z.infer<typeof doctorListQuery>) {
   }
 
   const [rows, total] = await Promise.all([
-    Doctor.find(filter).sort({ createdAt: dir }).skip(skip).limit(q.limit).lean(),
+    Doctor.find(filter).sort({ createdAt: dir, _id: dir }).skip(skip).limit(q.limit).lean(),
     Doctor.countDocuments(filter),
   ]);
   const counts = await patientCounts(rows.map((r) => r._id));
@@ -89,9 +89,15 @@ export async function updateDoctor(id: string, body: z.infer<typeof doctorUpdate
   return doctor.save(); // save() so validators and the search-token hook run
 }
 
+/**
+ * Deleting a doctor keeps their patients: they become unassigned and can be given a new doctor.
+ * Unassign runs first. Without multi-document transactions (needs a replica set) a failure between the two
+ * writes leaves unassigned patients and a still-present doctor, which a retry resolves; the reverse order
+ * would leave patients pointing at a doctor that no longer exists.
+ */
 export async function deleteDoctor(id: string) {
-  const { deletedCount } = await Doctor.deleteOne({ _id: id });
-  if (!deletedCount) throw notFound('Doctor');
-  // ponytail: not transactional (needs a replica set). Wrap both in a session if orphaned patients ever matter.
-  await Patient.deleteMany({ doctor: id });
+  const doctor = await Doctor.exists({ _id: id });
+  if (!doctor) throw notFound('Doctor');
+  await Patient.updateMany({ doctor: id }, { $set: { doctor: null } });
+  await Doctor.deleteOne({ _id: id });
 }

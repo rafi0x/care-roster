@@ -5,10 +5,10 @@ import { User } from '../modules/auth/user.model';
 import { Doctor, doctorSearchTokens } from '../modules/doctors/doctor.model';
 import { CONDITIONS, GENDERS, Patient, patientSearchTokens } from '../modules/patients/patient.model';
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@doctortracker.dev';
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@carerooster.dev';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@12345';
 
-const STAFF_EMAIL = 'staff@doctortracker.dev';
+const STAFF_EMAIL = 'staff@carerooster.dev';
 const STAFF_PASSWORD = 'Staff@12345';
 
 const FIRST = ['Ayesha', 'Tanvir', 'Nusrat', 'Imran', 'Farhana', 'Rakib', 'Sadia', 'Mahmud', 'Tahmina', 'Shakil', 'Rumana', 'Arif', 'Lamia', 'Fahim', 'Sharmin', 'Nayeem', 'Mitu', 'Jubayer', 'Priya', 'Zahid'];

@@ -16,10 +16,11 @@ const doctorSchema = new Schema(
 
 doctorSchema.set('toJSON', toJSON);
 
-// Every list is sorted newest-first, so each index ends in createdAt (equality -> sort -> range).
-doctorSchema.index({ createdAt: -1 });
-doctorSchema.index({ specialization: 1, createdAt: -1 });
-doctorSchema.index({ hospital: 1, createdAt: -1 });
+// Every list sorts by (createdAt, _id): the _id tie-breaker keeps pages stable when timestamps collide (bulk inserts),
+// so each index is equality -> createdAt -> _id and serves the sort without an in-memory SORT stage.
+doctorSchema.index({ createdAt: -1, _id: -1 });
+doctorSchema.index({ specialization: 1, createdAt: -1, _id: -1 });
+doctorSchema.index({ hospital: 1, createdAt: -1, _id: -1 });
 doctorSchema.index({ searchTokens: 1 });
 
 export const doctorSearchTokens = (d: { name?: string; specialization?: string; hospital?: string; email?: string; phone?: string }) =>

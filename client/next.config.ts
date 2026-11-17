@@ -3,7 +3,8 @@ import type { NextConfig } from 'next';
 const API_URL = process.env.API_URL ?? 'http://localhost:4000';
 
 const nextConfig: NextConfig = {
-  output: 'standalone', // minimal self-contained server for the Docker image
+  // Minimal self-contained server for the Docker image. Vercel builds its own output, so it is skipped there.
+  output: process.env.VERCEL ? undefined : 'standalone',
   cacheComponents: true,
   partialPrefetching: true,
   // The browser only ever talks to this origin; /api/* is forwarded to the standalone Express server.

@@ -69,7 +69,7 @@
   --card-foreground: #171717;
   --popover: #ffffff;
   --popover-foreground: #171717;
-  --primary: #0f766e; /* single accent: teal */
+  --primary: #0a3432; /* single accent: deep teal (the old menu colour) */
   --primary-foreground: #ffffff;
   --secondary: #f4f4f5;
   --secondary-foreground: #171717;
@@ -80,22 +80,22 @@
   --destructive: #c2362b;
   --border: #e4e4e7;
   --input: #d4d4d8;
-  --ring: #0f766e;
+  --ring: #0a3432;
 
-  --chart-1: #0f766e;
-  --chart-2: #0f766e;
+  --chart-1: #0a3432;
+  --chart-2: #0a3432;
   --chart-3: #2c6cb0;
   --chart-4: #c97a12;
   --chart-5: #84938f;
 
-  --sidebar: #ffffff;
-  --sidebar-foreground: #3f3f46;
-  --sidebar-primary: #0f766e;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f4f4f5;
-  --sidebar-accent-foreground: #171717;
-  --sidebar-border: #e4e4e7;
-  --sidebar-ring: #0f766e;
+  --sidebar: #0a3432;
+  --sidebar-foreground: #c9dcd8;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #0a3432;
+  --sidebar-accent: #1a4744;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f4d49;
+  --sidebar-ring: #7fd1c5;
 }
 
 @layer base {

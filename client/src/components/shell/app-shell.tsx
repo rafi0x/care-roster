@@ -50,9 +50,9 @@ function UserMenu() {
           </Avatar>
           <div className="grid min-w-0 flex-1 text-left leading-tight">
             <span className="truncate text-sm font-medium">{me?.name ?? ' '}</span>
-            <span className="truncate text-xs capitalize text-muted-foreground">{me?.role ?? ' '}</span>
+            <span className="truncate text-xs capitalize text-sidebar-foreground/70">{me?.role ?? ' '}</span>
           </div>
-          <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" aria-hidden />
+          <ChevronsUpDown className="ml-auto size-4 text-sidebar-foreground/70" aria-hidden />
         </SidebarMenuButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-56">
@@ -94,8 +94,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader className="p-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <span className="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden>
+          <Link href="/" className="flex items-center gap-2 font-semibold text-white">
+            <span className="grid size-7 place-items-center rounded-md bg-white/10" aria-hidden>
               <Stethoscope className="size-4" />
             </span>
             Doctor Tracker

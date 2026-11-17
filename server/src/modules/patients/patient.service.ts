@@ -66,10 +66,15 @@ export async function updatePatient(id: string, body: z.infer<typeof patientUpda
   return patient.populate('doctor', DOCTOR_FIELDS);
 }
 
-/** `doctorId` scopes the delete to one doctor's list. */
-export async function deletePatient(id: string, doctorId?: string) {
-  const { deletedCount } = await Patient.deleteOne({ _id: id, ...(doctorId && { doctor: doctorId }) });
+export async function deletePatient(id: string) {
+  const { deletedCount } = await Patient.deleteOne({ _id: id });
   if (!deletedCount) throw notFound('Patient');
+}
+
+/** Removes a patient from one doctor's list: the record is kept, just unassigned. */
+export async function unassignPatient(id: string, doctorId: string) {
+  const { matchedCount } = await Patient.updateOne({ _id: id, doctor: doctorId }, { $set: { doctor: null } });
+  if (!matchedCount) throw notFound('Patient');
 }
 
 // Lean rows bypass the schema's toJSON, so shape them the same way here.

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { objectId } from '../../utils/query';
-import { createPatient, deletePatient, listPatients, patientBody, patientListQuery } from '../patients/patient.service';
+import { createPatient, unassignPatient, listPatients, patientBody, patientListQuery } from '../patients/patient.service';
 import {
   createDoctor,
   deleteDoctor,
@@ -53,6 +53,6 @@ doctorRouter.post('/:id/patients', async (req, res) => {
 });
 
 doctorRouter.delete('/:id/patients/:patientId', async (req, res) => {
-  await deletePatient(objectId.parse(req.params.patientId), objectId.parse(req.params.id));
+  await unassignPatient(objectId.parse(req.params.patientId), objectId.parse(req.params.id));
   res.status(204).end();
 });

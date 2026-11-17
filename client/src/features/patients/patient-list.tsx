@@ -58,7 +58,7 @@ export function PatientList({ doctorId, action }: Props) {
 
   const remove = useWrite(
     (p: Patient) => api(doctorId ? `/doctors/${doctorId}/patients/${p.id}` : `/patients/${p.id}`, { method: 'DELETE' }),
-    'Patient deleted',
+    doctorId ? 'Patient unassigned' : 'Patient deleted',
   );
 
   // Stable identities so the table and search box do not re-render on unrelated state changes.
@@ -83,7 +83,7 @@ export function PatientList({ doctorId, action }: Props) {
                 </DropdownMenuItem>
                 <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(p)}>
                   <Trash2 aria-hidden />
-                  Delete
+                  {doctorId ? "Unassign" : "Delete"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -138,7 +138,7 @@ export function PatientList({ doctorId, action }: Props) {
             <Button variant="ghost" size="icon" aria-label={`Edit ${p.name}`} onClick={() => setEditing(p)}>
               <Pencil />
             </Button>
-            <Button variant="ghost" size="icon" aria-label={`Delete ${p.name}`} onClick={() => setDeleting(p)} className="hover:text-destructive">
+            <Button variant="ghost" size="icon" aria-label={`${doctorId ? "Unassign" : "Delete"} ${p.name}`} onClick={() => setDeleting(p)} className="hover:text-destructive">
               <Trash2 />
             </Button>
           </div>
@@ -200,9 +200,9 @@ export function PatientList({ doctorId, action }: Props) {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        title={`Delete ${deleting?.name ?? 'patient'}?`}
-        description="This removes the patient record permanently."
-        confirmLabel="Delete patient"
+        title={doctorId ? `Unassign ${deleting?.name ?? 'patient'}?` : `Delete ${deleting?.name ?? 'patient'}?`}
+        description={doctorId ? "The patient is kept and becomes unassigned. You can give them a new doctor from the Patients page." : 'This removes the patient record permanently.'}
+        confirmLabel={doctorId ? 'Unassign patient' : 'Delete patient'}
         pending={remove.isPending}
         onConfirm={() => deleting && remove.mutate(deleting, { onSettled: () => setDeleting(null) })}
       />

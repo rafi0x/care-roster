@@ -7,12 +7,12 @@ import { ConditionBadge } from '@/components/app/condition-badge';
 import { PhoneLink } from '@/components/app/phone-link';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { ConfirmDialog, FormDialog } from '@/components/app/dialogs';
-import { DateRange, FilterBar, FilterSelect } from '@/components/app/filters';
+import { DateRange, FilterBar, FilterSelect, SortSelect } from '@/components/app/filters';
 import { ListPagination } from '@/components/app/list-pagination';
 import { ErrorState, Panel } from '@/components/app/page';
 import { SearchInput } from '@/components/app/search-input';
 import { Button } from '@/components/ui/button';
-import { useListParams } from '@/hooks/use-list-params';
+import { useListParams, useSort } from '@/hooks/use-list-params';
 import { api } from '@/lib/api';
 import { CONDITIONS, conditionMeta, GENDERS } from '@/lib/conditions';
 import { formatDate } from '@/lib/format';
@@ -27,12 +27,18 @@ interface Props {
   action?: ReactNode;
 }
 
+const SORT_OPTIONS = [
+  { key: 'createdAt', order: 'desc', label: 'Newest first' },
+  { key: 'createdAt', order: 'asc', label: 'Oldest first' },
+] as const;
+
 const rowKey = (p: Patient) => p.id;
 const rowAccent = (p: Patient) => conditionMeta(p.condition).color;
 
 /** Searchable, filterable, paginated patient table with edit and delete. Used by both patient views. */
 export function PatientList({ doctorId, action }: Props) {
   const { params, setParams, hasFilters, reset } = useListParams();
+  const { sort, onSort, setSort } = useSort(params, setParams);
   const { data, error, isPlaceholderData, refetch } = usePatients(params, doctorId);
   const canWrite = useCanWrite();
   const [editing, setEditing] = useState<Patient | null>(null);
@@ -73,7 +79,7 @@ export function PatientList({ doctorId, action }: Props) {
             },
           ]),
       { header: 'Phone', cell: (p) => <PhoneLink phone={p.phone} /> },
-      { header: 'Added', cell: (p) => <span className="whitespace-nowrap text-muted-foreground">{formatDate(p.createdAt)}</span> },
+      { header: 'Added', sortKey: 'createdAt', cell: (p) => <span className="whitespace-nowrap text-muted-foreground">{formatDate(p.createdAt)}</span> },
       ...(!canWrite
         ? []
         : [
@@ -104,6 +110,7 @@ export function PatientList({ doctorId, action }: Props) {
         <FilterSelect label="Condition" value={params.condition} onChange={(condition) => setParams({ condition })} options={CONDITIONS} />
         <FilterSelect label="Gender" value={params.gender} onChange={(gender) => setParams({ gender })} options={GENDERS} />
         <DateRange from={params.from} to={params.to} onChange={setParams} />
+        <SortSelect value={`${sort.key}:${sort.order}`} onChange={setSort} options={SORT_OPTIONS} />
         {action && <div className="ml-auto max-sm:w-full [&>button]:max-sm:w-full">{action}</div>}
       </FilterBar>
 
@@ -115,6 +122,8 @@ export function PatientList({ doctorId, action }: Props) {
             columns={columns}
             rows={data?.data}
             rowKey={rowKey}
+            sort={sort}
+            onSort={onSort}
             rowAccent={rowAccent}
             stale={isPlaceholderData}
             empty={

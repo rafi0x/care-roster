@@ -74,6 +74,36 @@ export function DateRange({ from, to, onChange }: DateRangeProps) {
   );
 }
 
+interface SortSelectProps {
+  value: string;
+  onChange: (key: string, order: 'asc' | 'desc') => void;
+  options: readonly { key: string; order: 'asc' | 'desc'; label: string }[];
+}
+
+/** Sort control for phones, where the table header (and its sort buttons) is hidden. */
+export function SortSelect({ value, onChange, options }: SortSelectProps) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(v) => {
+        const o = options.find((x) => `${x.key}:${x.order}` === v)!;
+        onChange(o.key, o.order);
+      }}
+    >
+      <SelectTrigger aria-label="Sort by" className="bg-card max-sm:flex-1 sm:hidden">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={`${o.key}:${o.order}`} value={`${o.key}:${o.order}`}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function FilterBar({ children, onClear }: { children: ReactNode; onClear?: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b p-3 sm:p-4">

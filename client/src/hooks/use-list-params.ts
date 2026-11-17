@@ -28,8 +28,22 @@ export function useListParams() {
     [searchParams, pathname, router],
   );
 
-  const hasFilters = Object.keys(params).some((k) => k !== 'page');
+  const hasFilters = Object.keys(params).some((k) => !['page', 'sort', 'order'].includes(k)); // sorting is not a filter
   const reset = useCallback(() => router.replace(pathname, { scroll: false }), [router, pathname]);
 
   return { params, setParams, hasFilters, reset };
+}
+
+export interface Sort {
+  key: string;
+  order: 'asc' | 'desc';
+}
+
+/** Current sort from the URL (default: newest first) and a toggle: new column -> descending, same column -> flip. */
+export function useSort(params: Record<string, string | undefined>, setParams: (patch: Record<string, string | undefined>) => void, defaultKey = 'createdAt') {
+  const sort: Sort = { key: params.sort ?? defaultKey, order: params.order === 'asc' ? 'asc' : 'desc' };
+  const setSort = (key: string, order: Sort['order']) =>
+    setParams({ sort: key === defaultKey ? undefined : key, order: order === 'asc' ? 'asc' : undefined });
+  const onSort = (key: string) => setSort(key, key === sort.key && sort.order === 'desc' ? 'asc' : 'desc');
+  return { sort, onSort, setSort };
 }

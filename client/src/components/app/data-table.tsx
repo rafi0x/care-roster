@@ -1,4 +1,7 @@
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import type { Sort } from '@/hooks/use-list-params';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -9,6 +12,8 @@ export interface Column<T> {
   align?: 'right';
   /** Hide the column label in the stacked mobile layout (titles, action buttons). */
   bare?: boolean;
+  /** Makes the header a sort button for this server-side sort key. */
+  sortKey?: string;
 }
 
 interface Props<T> {
@@ -23,13 +28,15 @@ interface Props<T> {
   rowAccent?: (row: T) => string;
   /** Makes the whole row a click target (keep a real link inside for keyboard and screen readers). */
   onRowClick?: (row: T) => void;
+  sort?: Sort;
+  onSort?: (key: string) => void;
 }
 
 /**
  * One shadcn Table for every list. Below `sm` the same markup reflows into stacked
  * records via CSS (see `.data-table` in globals.css) — no duplicate mobile DOM.
  */
-export function DataTable<T>({ columns, rows, rowKey, empty, stale, rowAccent, onRowClick }: Props<T>) {
+export function DataTable<T>({ columns, rows, rowKey, empty, stale, rowAccent, onRowClick, sort, onSort }: Props<T>) {
   if (rows?.length === 0) {
     return <div className="px-4 py-16 text-center text-sm text-muted-foreground">{empty}</div>;
   }
@@ -39,8 +46,20 @@ export function DataTable<T>({ columns, rows, rowKey, empty, stale, rowAccent, o
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           {columns.map((c) => (
-            <TableHead key={c.header} scope="col" className={cn('text-muted-foreground', c.align === 'right' && 'text-right')}>
-              {c.header}
+            <TableHead
+              key={c.header}
+              scope="col"
+              aria-sort={c.sortKey && sort?.key === c.sortKey ? (sort.order === 'asc' ? 'ascending' : 'descending') : undefined}
+              className={cn('text-muted-foreground', c.align === 'right' && 'text-right')}
+            >
+              {c.sortKey && onSort ? (
+                <Button variant="ghost" size="sm" onClick={() => onSort(c.sortKey!)} className={cn('-mx-2.5 font-medium', sort?.key === c.sortKey && 'text-foreground')}>
+                  {c.header}
+                  {sort?.key !== c.sortKey ? <ArrowUpDown aria-hidden /> : sort.order === 'asc' ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />}
+                </Button>
+              ) : (
+                c.header
+              )}
             </TableHead>
           ))}
         </TableRow>

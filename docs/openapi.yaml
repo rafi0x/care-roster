@@ -1,0 +1,697 @@
+openapi: 3.1.0
+info:
+  title: CareRoster API
+  version: 1.0.0
+  description: |
+    REST API behind the CareRoster admin portal. Unversioned `/api` prefix.
+
+    Roles: `admin` can read and write; `staff` can only read (GET/HEAD). Any non-GET/HEAD request on
+    `/api/doctors`, `/api/patients` and `/api/dashboard` by a staff user returns 403.
+
+    Success bodies are `{data}` or `{data, meta}` for lists. Errors are `{error:{code,message,details?}}`.
+    Lists are ordered by `createdAt` with an `_id` tiebreaker (`sort=patients` on doctors: patient count, then `_id` ascending).
+servers:
+  - url: http://localhost:3000
+    description: Through the Next.js rewrite (what the browser uses)
+  - url: http://localhost:4000
+    description: Express directly
+security:
+  - cookieAuth: []
+tags:
+  - name: Auth
+  - name: Doctors
+  - name: Patients
+  - name: Dashboard
+  - name: Health
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Readiness (pings MongoDB)
+      security: []
+      responses:
+        '200':
+          description: Database answers
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: ok }
+        '503':
+          description: Database unavailable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: unavailable }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in and set the session cookie
+      description: Rate limited to 20 attempts per 15 minutes per IP (disabled when NODE_ENV=test).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginBody' }
+      responses:
+        '200':
+          description: Signed in. Sets the `token` cookie (httpOnly, SameSite=Lax, Secure in production, lifetime JWT_EXPIRES_IN_HOURS, default 8).
+          headers:
+            Set-Cookie:
+              description: "`token=<jwt>; Path=/; HttpOnly; SameSite=Lax`"
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Wrong email or password (code `INVALID_CREDENTIALS`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Clear the session cookie
+      security: []
+      responses:
+        '204': { description: Cookie cleared }
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      responses:
+        '200':
+          description: The signed-in user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/doctors:
+    get:
+      tags: [Doctors]
+      summary: List doctors
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Order'
+        - name: sort
+          in: query
+          description: "`patients` sorts by patient count (ties by `_id` ascending)."
+          schema: { type: string, enum: [createdAt, patients], default: createdAt }
+        - name: specialization
+          in: query
+          description: Exact match
+          schema: { type: string, maxLength: 100 }
+        - name: hospital
+          in: query
+          description: Exact match
+          schema: { type: string, maxLength: 150 }
+      responses:
+        '200':
+          description: A page of doctors, each with `patientCount`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/DoctorWithCount' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Doctors]
+      summary: Create a doctor (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DoctorBody' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Doctor' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/doctors/filters:
+    get:
+      tags: [Doctors]
+      summary: Distinct specializations and hospitals (sorted)
+      responses:
+        '200':
+          description: Filter options
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [specializations, hospitals]
+                    properties:
+                      specializations: { type: array, items: { type: string } }
+                      hospitals: { type: array, items: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/doctors/{id}:
+    parameters:
+      - $ref: '#/components/parameters/DoctorId'
+    get:
+      tags: [Doctors]
+      summary: Get a doctor with patientCount
+      responses:
+        '200':
+          description: The doctor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/DoctorWithCount' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Doctors]
+      summary: Update a doctor (admin)
+      description: Any subset of the create fields; at least one is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DoctorUpdateBody' }
+      responses:
+        '200':
+          description: Updated doctor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Doctor' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Doctors]
+      summary: Delete a doctor (admin); their patients become unassigned
+      description: Sets `doctor` to null on all the doctor's patients, then deletes the doctor. Not transactional.
+      responses:
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/doctors/{id}/patients:
+    parameters:
+      - $ref: '#/components/parameters/DoctorId'
+    get:
+      tags: [Doctors, Patients]
+      summary: List one doctor's patients
+      description: Same filters as `GET /api/patients`; the path's doctor overrides any `doctor` query value. A nonexistent doctor yields an empty page, not 404.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Condition'
+        - $ref: '#/components/parameters/Gender'
+      responses:
+        '200':
+          description: A page of patients
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PatientPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Doctors, Patients]
+      summary: Add a patient under this doctor (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatientBody' }
+      responses:
+        '201':
+          description: Created, with the doctor populated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Patient' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/doctors/{id}/patients/{patientId}:
+    delete:
+      tags: [Doctors, Patients]
+      summary: Remove a patient from this doctor's list (admin)
+      description: Deletes the patient, but only if currently assigned to this doctor; otherwise 404.
+      parameters:
+        - $ref: '#/components/parameters/DoctorId'
+        - name: patientId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ObjectId' }
+      responses:
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/patients:
+    get:
+      tags: [Patients]
+      summary: List all patients
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Condition'
+        - $ref: '#/components/parameters/Gender'
+        - name: doctor
+          in: query
+          description: A doctor id, or `unassigned` for patients with no doctor
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ObjectId'
+              - type: string
+                const: unassigned
+      responses:
+        '200':
+          description: A page of patients
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PatientPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/patients/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ObjectId' }
+    patch:
+      tags: [Patients]
+      summary: Update or reassign a patient (admin)
+      description: Any subset of the fields; at least one is required. `doctor` reassigns (id) or unassigns (null).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PatientUpdateBody' }
+      responses:
+        '200':
+          description: Updated patient, doctor populated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Patient' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Patients]
+      summary: Delete a patient (admin)
+      responses:
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Dashboard statistics
+      description: Cached in memory per `days` value for 60 seconds and cleared on any successful write handled by this process. Days are UTC.
+      parameters:
+        - name: days
+          in: query
+          description: Length of the timeline window, ending today
+          schema: { type: integer, minimum: 1, maximum: 365, default: 30 }
+      responses:
+        '200':
+          description: Totals, breakdowns and a zero-filled daily timeline
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/DashboardStats' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: JWT (HS256) set by `POST /api/auth/login`; httpOnly, SameSite=Lax.
+
+  parameters:
+    DoctorId:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/ObjectId' }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+    Search:
+      name: search
+      in: query
+      description: Word-prefix search. Up to 5 terms, all must match. Doctors search name, specialization, hospital, email, phone; patients search name, phone, email.
+      schema: { type: string, maxLength: 100 }
+    From:
+      name: from
+      in: query
+      description: Created on or after this UTC day (YYYY-MM-DD)
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      description: Created on or before this UTC day (YYYY-MM-DD, whole day included)
+      schema: { type: string, format: date }
+    Order:
+      name: order
+      in: query
+      schema: { type: string, enum: [asc, desc], default: desc }
+    Condition:
+      name: condition
+      in: query
+      schema: { $ref: '#/components/schemas/Condition' }
+    Gender:
+      name: gender
+      in: query
+      schema: { $ref: '#/components/schemas/Gender' }
+
+  responses:
+    ValidationError:
+      description: Invalid body, query or id (code `VALIDATION_ERROR`; `details` maps field to messages)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid request
+              details: { phone: [Enter a valid phone number] }
+    Unauthenticated:
+      description: Missing, invalid or expired cookie (code `UNAUTHENTICATED`); the cookie is cleared
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: UNAUTHENTICATED, message: Please sign in } }
+    Forbidden:
+      description: Signed in as staff (read-only) (code `FORBIDDEN`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: FORBIDDEN, message: You do not have permission to do that } }
+    NotFound:
+      description: Resource not found (code `NOT_FOUND`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: NOT_FOUND, message: Doctor not found } }
+    Conflict:
+      description: Unique field already in use (code `CONFLICT`, for example doctor email)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: CONFLICT, message: That email is already in use } }
+    TooManyRequests:
+      description: Rate limit exceeded (code `TOO_MANY_REQUESTS`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    ObjectId:
+      type: string
+      pattern: '^[a-f0-9]{24}$'
+      example: 665f1c2e8b3a4d0012a1b2c3
+    Condition:
+      type: string
+      enum: [stable, recovering, under_observation, critical, discharged]
+    Gender:
+      type: string
+      enum: [male, female, other]
+    Role:
+      type: string
+      enum: [admin, staff]
+    Phone:
+      type: string
+      pattern: '^\+?[\d\s()-]{6,20}$'
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: VALIDATION_ERROR, UNAUTHENTICATED, INVALID_CREDENTIALS, FORBIDDEN, NOT_FOUND, CONFLICT, TOO_MANY_REQUESTS, INTERNAL_ERROR
+            message: { type: string }
+            details:
+              type: object
+              description: Present on validation errors; field name to list of messages
+              additionalProperties:
+                type: array
+                items: { type: string }
+    PageMeta:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+    LoginBody:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, description: Lowercased and trimmed }
+        password: { type: string, minLength: 1, maxLength: 200 }
+    User:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id: { $ref: '#/components/schemas/ObjectId' }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/Role' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DoctorBody:
+      type: object
+      required: [name, specialization, hospital, phone, email]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        specialization: { type: string, minLength: 2, maxLength: 100 }
+        hospital: { type: string, minLength: 2, maxLength: 150 }
+        phone: { $ref: '#/components/schemas/Phone' }
+        email: { type: string, format: email, description: Unique; lowercased }
+    DoctorUpdateBody:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        specialization: { type: string, minLength: 2, maxLength: 100 }
+        hospital: { type: string, minLength: 2, maxLength: 150 }
+        phone: { $ref: '#/components/schemas/Phone' }
+        email: { type: string, format: email }
+    Doctor:
+      type: object
+      required: [id, name, specialization, hospital, phone, email]
+      properties:
+        id: { $ref: '#/components/schemas/ObjectId' }
+        name: { type: string }
+        specialization: { type: string }
+        hospital: { type: string }
+        phone: { type: string }
+        email: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DoctorWithCount:
+      allOf:
+        - $ref: '#/components/schemas/Doctor'
+        - type: object
+          required: [patientCount]
+          properties:
+            patientCount: { type: integer, minimum: 0 }
+    PatientBody:
+      type: object
+      required: [name, age, gender, phone, condition]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        age: { type: integer, minimum: 0, maximum: 130, description: Numeric strings are coerced }
+        gender: { $ref: '#/components/schemas/Gender' }
+        phone: { $ref: '#/components/schemas/Phone' }
+        email: { type: [string, 'null'], format: email, description: Optional; empty string is treated as absent }
+        condition: { $ref: '#/components/schemas/Condition' }
+    PatientUpdateBody:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        age: { type: integer, minimum: 0, maximum: 130 }
+        gender: { $ref: '#/components/schemas/Gender' }
+        phone: { $ref: '#/components/schemas/Phone' }
+        email: { type: string, format: email }
+        condition: { $ref: '#/components/schemas/Condition' }
+        doctor:
+          oneOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+          description: Doctor id to reassign, null to unassign
+    DoctorRef:
+      type: object
+      required: [id, name, specialization]
+      properties:
+        id: { $ref: '#/components/schemas/ObjectId' }
+        name: { type: string }
+        specialization: { type: string }
+    Patient:
+      type: object
+      required: [id, name, age, gender, phone, condition, doctor]
+      properties:
+        id: { $ref: '#/components/schemas/ObjectId' }
+        name: { type: string }
+        age: { type: integer }
+        gender: { $ref: '#/components/schemas/Gender' }
+        phone: { type: string }
+        email: { type: string, description: Absent when not provided }
+        condition: { $ref: '#/components/schemas/Condition' }
+        doctor:
+          description: Populated doctor reference; null when unassigned
+          oneOf:
+            - $ref: '#/components/schemas/DoctorRef'
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PatientPage:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Patient' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    DashboardStats:
+      type: object
+      required: [totals, patientsPerDoctor, patientsByCondition, doctorsBySpecialization, timeline]
+      properties:
+        totals:
+          type: object
+          required: [doctors, patients, newDoctors, newPatients, criticalPatients]
+          properties:
+            doctors: { type: integer }
+            patients: { type: integer }
+            newDoctors: { type: integer, description: Created within the window }
+            newPatients: { type: integer, description: Created within the window }
+            criticalPatients: { type: integer }
+        patientsPerDoctor:
+          type: array
+          maxItems: 10
+          description: Top 10 doctors by patient count; unassigned patients excluded
+          items:
+            type: object
+            required: [doctorId, name, specialization, count]
+            properties:
+              doctorId: { $ref: '#/components/schemas/ObjectId' }
+              name: { type: string }
+              specialization: { type: string }
+              count: { type: integer }
+        patientsByCondition:
+          type: array
+          items:
+            type: object
+            required: [condition, count]
+            properties:
+              condition: { $ref: '#/components/schemas/Condition' }
+              count: { type: integer }
+        doctorsBySpecialization:
+          type: array
+          items:
+            type: object
+            required: [specialization, count]
+            properties:
+              specialization: { type: string }
+              count: { type: integer }
+        timeline:
+          type: array
+          description: One entry per UTC day, oldest first, zero-filled; length equals `days`
+          items:
+            type: object
+            required: [date, patients, doctors]
+            properties:
+              date: { type: string, format: date }
+              patients: { type: integer }
+              doctors: { type: integer }

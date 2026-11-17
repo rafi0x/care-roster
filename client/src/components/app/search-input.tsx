@@ -29,9 +29,9 @@ export function SearchInput({ value, onSearch, placeholder, delay = 300 }: Props
   }, [text, value, onSearch, delay]);
 
   return (
-    <div className="relative min-w-0 flex-1 basis-full sm:basis-72">
+    <div className="relative min-w-0 flex-1 basis-[calc(100%-2.5rem)] max-sm:-order-1 sm:basis-72">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-      <Input type="search" aria-label={placeholder} placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} className="bg-card pl-8" />
+      <Input type="search" aria-label={placeholder} placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} className="min-h-8! bg-card pl-8" />
     </div>
   );
 }

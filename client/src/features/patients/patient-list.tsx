@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { ConditionBadge } from '@/components/app/condition-badge';
@@ -12,6 +12,7 @@ import { ListPagination } from '@/components/app/list-pagination';
 import { ErrorState, Panel } from '@/components/app/page';
 import { SearchInput } from '@/components/app/search-input';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useListParams, useSort } from '@/hooks/use-list-params';
 import { api } from '@/lib/api';
 import { CONDITIONS, conditionMeta, GENDERS } from '@/lib/conditions';
@@ -28,8 +29,8 @@ interface Props {
 }
 
 const SORT_OPTIONS = [
-  { key: 'createdAt', order: 'desc', label: 'Newest first' },
-  { key: 'createdAt', order: 'asc', label: 'Oldest first' },
+  { key: 'createdAt', order: 'desc', label: 'Newest first', short: 'Newest' },
+  { key: 'createdAt', order: 'asc', label: 'Oldest first', short: 'Oldest' },
 ] as const;
 
 const rowKey = (p: Patient) => p.id;
@@ -53,9 +54,30 @@ export function PatientList({ doctorId, action }: Props) {
   const onSearch = useCallback((search: string) => setParams({ search }), [setParams]);
   const patientCard = (p: Patient) => (
     <div className="space-y-1.5">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <p className="text-base font-semibold">{p.name}</p>
-        <ConditionBadge condition={p.condition} />
+        <div className="-mr-2 -mt-1.5 flex items-center gap-1">
+          <ConditionBadge condition={p.condition} />
+          {canWrite && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={`Actions for ${p.name}`}>
+                  <MoreVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setEditing(p)}>
+                  <Pencil aria-hidden />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(p)}>
+                  <Trash2 aria-hidden />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {p.age} yrs · {p.gender === 'other' ? 'Other' : p.gender === 'male' ? 'Male' : 'Female'}
@@ -71,18 +93,6 @@ export function PatientList({ doctorId, action }: Props) {
         <PhoneLink phone={p.phone} />
         <span className="text-xs text-muted-foreground">Added {formatDate(p.createdAt)}</span>
       </div>
-      {canWrite && (
-        <div className="-mb-1 flex justify-end gap-1 border-t pt-2">
-          <Button variant="ghost" size="sm" onClick={() => setEditing(p)}>
-            <Pencil aria-hidden />
-            Edit
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setDeleting(p)} className="text-destructive hover:text-destructive">
-            <Trash2 aria-hidden />
-            Delete
-          </Button>
-        </div>
-      )}
     </div>
   );
 
@@ -141,12 +151,12 @@ export function PatientList({ doctorId, action }: Props) {
   return (
     <Panel>
       <FilterBar onClear={hasFilters ? reset : undefined}>
-        <SearchInput value={params.search ?? ''} onSearch={onSearch} placeholder="Search by name, phone or email" />
+        <SearchInput value={params.search ?? ''} onSearch={onSearch} placeholder="Search name, phone, email" />
         <FilterSelect label="Condition" value={params.condition} onChange={(condition) => setParams({ condition })} options={CONDITIONS} />
         <FilterSelect label="Gender" value={params.gender} onChange={(gender) => setParams({ gender })} options={GENDERS} />
         <DateRange from={params.from} to={params.to} onChange={setParams} />
         <SortSelect value={`${sort.key}:${sort.order}`} onChange={setSort} options={SORT_OPTIONS} />
-        {action && <div className="ml-auto max-sm:w-full [&>button]:max-sm:w-full">{action}</div>}
+        {action && <div className="ml-auto max-sm:order-2 max-sm:w-full [&>button]:max-sm:w-full">{action}</div>}
       </FilterBar>
 
       {error ? (

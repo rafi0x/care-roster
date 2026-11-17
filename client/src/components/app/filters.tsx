@@ -19,11 +19,13 @@ interface SelectProps {
   options: { value: string; label: string }[];
 }
 
+// `min-h-8!` beats the touch-device 44px rule so every filter control matches the date button's height.
 export function FilterSelect({ label, value, onChange, options }: SelectProps) {
   return (
     <Select value={value || ALL} onValueChange={(v) => onChange(v === ALL ? '' : v)}>
-      <SelectTrigger aria-label={label} className="bg-card max-sm:flex-1">
-        <SelectValue />
+      <SelectTrigger aria-label={label} className="min-h-8! bg-card max-sm:order-1 max-sm:min-w-0 max-sm:flex-1 max-sm:basis-0">
+        {/* Short text when unfiltered so three selects fit one phone row */}
+        <SelectValue>{value ? options.find((o) => o.value === value)?.label : label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>{label}: all</SelectItem>
@@ -56,9 +58,14 @@ export function DateRange({ from, to, onChange }: DateRangeProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('bg-card font-normal max-sm:flex-1', !start && 'text-muted-foreground')}>
+        <Button
+          variant="outline"
+          aria-label={`Date added: ${label}`}
+          className={cn('relative min-h-8! bg-card font-normal max-sm:size-8 max-sm:min-w-8! max-sm:px-0', !start && 'text-muted-foreground')}
+        >
           <CalendarIcon aria-hidden />
-          {label}
+          <span className="max-sm:sr-only">{label}</span>
+          {start && <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary sm:hidden" aria-hidden />}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
@@ -77,7 +84,7 @@ export function DateRange({ from, to, onChange }: DateRangeProps) {
 interface SortSelectProps {
   value: string;
   onChange: (key: string, order: 'asc' | 'desc') => void;
-  options: readonly { key: string; order: 'asc' | 'desc'; label: string }[];
+  options: readonly { key: string; order: 'asc' | 'desc'; label: string; short: string }[];
 }
 
 /** Sort control for phones, where the table header (and its sort buttons) is hidden. */
@@ -90,8 +97,8 @@ export function SortSelect({ value, onChange, options }: SortSelectProps) {
         onChange(o.key, o.order);
       }}
     >
-      <SelectTrigger aria-label="Sort by" className="bg-card max-sm:flex-1 sm:hidden">
-        <SelectValue />
+      <SelectTrigger aria-label="Sort by" className="min-h-8! bg-card max-sm:order-1 max-sm:min-w-0 max-sm:flex-1 max-sm:basis-0 sm:hidden">
+        <SelectValue>{options.find((o) => `${o.key}:${o.order}` === value)?.short}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
@@ -109,7 +116,7 @@ export function FilterBar({ children, onClear }: { children: ReactNode; onClear?
     <div className="flex flex-wrap items-center gap-2 border-b p-3 sm:p-4">
       {children}
       {onClear && (
-        <Button variant="ghost" onClick={onClear}>
+        <Button variant="ghost" onClick={onClear} className="max-sm:order-2">
           Clear filters
         </Button>
       )}

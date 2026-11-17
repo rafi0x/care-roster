@@ -23,10 +23,10 @@ const rowKey = (d: Doctor) => d.id;
 const toOptions = (values: string[] = []) => values.map((v) => ({ value: v, label: v }));
 
 const SORT_OPTIONS = [
-  { key: 'createdAt', order: 'desc', label: 'Newest first' },
-  { key: 'createdAt', order: 'asc', label: 'Oldest first' },
-  { key: 'patients', order: 'desc', label: 'Most patients' },
-  { key: 'patients', order: 'asc', label: 'Fewest patients' },
+  { key: 'createdAt', order: 'desc', label: 'Newest first', short: 'Newest' },
+  { key: 'createdAt', order: 'asc', label: 'Oldest first', short: 'Oldest' },
+  { key: 'patients', order: 'desc', label: 'Most patients', short: 'Patients ↓' },
+  { key: 'patients', order: 'asc', label: 'Fewest patients', short: 'Patients ↑' },
 ] as const;
 
 const doctorCard = (d: Doctor) => (
@@ -104,8 +104,8 @@ export function DoctorList() {
       />
       <Panel>
         <FilterBar onClear={hasFilters ? reset : undefined}>
-          <SearchInput value={params.search ?? ''} onSearch={onSearch} placeholder="Search name, specialty, hospital" />
-          <FilterSelect label="Specialization" value={params.specialization} onChange={(specialization) => setParams({ specialization })} options={specializations} />
+          <SearchInput value={params.search ?? ''} onSearch={onSearch} placeholder="Search doctors" />
+          <FilterSelect label="Specialty" value={params.specialization} onChange={(specialization) => setParams({ specialization })} options={specializations} />
           <FilterSelect label="Hospital" value={params.hospital} onChange={(hospital) => setParams({ hospital })} options={hospitals} />
           <DateRange from={params.from} to={params.to} onChange={setParams} />
           <SortSelect value={`${sort.key}:${sort.order}`} onChange={setSort} options={SORT_OPTIONS} />

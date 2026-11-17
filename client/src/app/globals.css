@@ -117,12 +117,14 @@
 /* Touch devices: grow the compact shadcn controls to the 44px minimum target. */
 @media (pointer: coarse) {
   [data-slot="button"],
+  [data-slot="dropdown-menu-trigger"],
   [data-slot="input"],
   [data-slot="select-trigger"],
   [data-slot="toggle-group-item"] {
     min-height: 2.75rem;
   }
-  [data-slot="button"][data-size^="icon"] {
+  [data-slot="button"][data-size^="icon"],
+  [data-slot="dropdown-menu-trigger"][data-size^="icon"] {
     min-width: 2.75rem;
   }
 }

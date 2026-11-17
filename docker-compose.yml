@@ -1,4 +1,3 @@
-# Local MongoDB for development: `docker compose up -d`
 services:
   mongo:
     image: mongo:8
@@ -6,6 +5,52 @@ services:
       - '27017:27017'
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: [ 'CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build: ./server
+    environment:
+      # Not "production" so the session cookie is not Secure-only (this stack is served over plain http).
+      # Set NODE_ENV=production behind HTTPS.
+      NODE_ENV: ${NODE_ENV:-development}
+      MONGO_URI: mongodb://mongo:27017/carerooster
+      # DEV-ONLY placeholder (32+ chars). Always override JWT_SECRET anywhere real.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-0123456789}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:3000}
+    ports:
+      - '4000:4000'
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./client
+      args:
+        API_URL: http://api:4000
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # One-shot: wipes the database and loads demo data.
+  seed:
+    profiles: [ 'seed' ]
+    build: ./server
+    command: [ 'node', 'dist/scripts/seed.js' ]
+    environment:
+      NODE_ENV: development # the seed refuses to run when NODE_ENV=production
+      MONGO_URI: mongodb://mongo:27017/carerooster
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-0123456789}
+    depends_on:
+      mongo:
+        condition: service_healthy
 
 volumes:
   mongo-data:

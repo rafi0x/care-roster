@@ -14,20 +14,25 @@ const rows: Row[] = [
 
 describe('DataTable', () => {
   it('renders a header and one row per record', () => {
-    render(<DataTable columns={columns} rows={rows} rowKey={(r) => r.id} empty="Nothing here" />);
+    render(<DataTable columns={columns} rows={rows} rowKey={(r) => r.id} card={(r) => r.name} empty="Nothing here" />);
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Name', 'Age']);
     const body = screen.getAllByRole('row').slice(1);
     expect(body).toHaveLength(2);
     expect(within(body[1]).getByText('Karim')).toBeInTheDocument();
   });
 
+  it('also renders one card per record for phones', () => {
+    render(<DataTable columns={columns} rows={rows} rowKey={(r) => r.id} card={(r) => `card:${r.name}`} empty="Nothing here" />);
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['card:Rina', 'card:Karim']);
+  });
+
   it('shows the empty message when there are no rows', () => {
-    render(<DataTable columns={columns} rows={[]} rowKey={(r) => r.id} empty="No patients match these filters" />);
+    render(<DataTable columns={columns} rows={[]} rowKey={(r) => r.id} card={(r) => r.name} empty="No patients match these filters" />);
     expect(screen.getByText('No patients match these filters')).toBeInTheDocument();
   });
 
   it('shows placeholders while loading', () => {
-    render(<DataTable columns={columns} rows={undefined} rowKey={(r) => r.id} empty="x" />);
+    render(<DataTable columns={columns} rows={undefined} rowKey={(r) => r.id} card={(r) => r.name} empty="x" />);
     expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'true');
     expect(screen.queryByText('x')).not.toBeInTheDocument();
   });

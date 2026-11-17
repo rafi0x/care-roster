@@ -127,7 +127,7 @@
   }
 }
 
-/* ---------- DataTable: shadcn Table on wide screens, stacked records on phones ---------- */
+/* ---------- DataTable: shadcn Table from sm up (phones render cards, see data-table.tsx) ---------- */
 .data-table th,
 .data-table td {
   padding-inline: 1rem;
@@ -138,43 +138,6 @@
 /* The condition "wristband" */
 .data-table td:first-child {
   box-shadow: inset 3px 0 0 var(--accent-stripe, transparent);
-}
-
-@media (max-width: 639px) {
-  .data-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-  .data-table tr {
-    display: block;
-    padding: 0.875rem 1rem;
-    box-shadow: inset 3px 0 0 var(--accent-stripe, transparent);
-  }
-  .data-table td {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.2rem 0;
-    box-shadow: none !important;
-    text-align: right;
-    white-space: normal;
-  }
-  .data-table td[data-label]::before {
-    content: attr(data-label);
-    flex-shrink: 0;
-    color: var(--muted-foreground);
-  }
-  .data-table td:not([data-label]) {
-    text-align: left;
-  }
-  .data-table td:not([data-label]):last-child {
-    justify-content: flex-end;
-    padding-top: 0.5rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

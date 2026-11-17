@@ -30,19 +30,42 @@ interface Props<T> {
   onRowClick?: (row: T) => void;
   sort?: Sort;
   onSort?: (key: string) => void;
+  /** Phone layout: one card per row (the table is shown from `sm` up). */
+  card: (row: T) => ReactNode;
 }
 
 /**
  * One shadcn Table for every list. Below `sm` the same markup reflows into stacked
  * records via CSS (see `.data-table` in globals.css) — no duplicate mobile DOM.
  */
-export function DataTable<T>({ columns, rows, rowKey, empty, stale, rowAccent, onRowClick, sort, onSort }: Props<T>) {
+export function DataTable<T>({ columns, rows, rowKey, empty, stale, rowAccent, onRowClick, sort, onSort, card }: Props<T>) {
   if (rows?.length === 0) {
     return <div className="px-4 py-16 text-center text-sm text-muted-foreground">{empty}</div>;
   }
 
   return (
-    <Table className={cn('data-table transition-opacity', stale && 'opacity-60')} aria-busy={!rows}>
+    <>
+      <ul className={cn('divide-y transition-opacity sm:hidden', stale && 'opacity-60')} aria-busy={!rows}>
+        {rows
+          ? rows.map((row) => (
+              <li
+                key={rowKey(row)}
+                onClick={onRowClick && (() => onRowClick(row))}
+                style={{ boxShadow: rowAccent ? `inset 3px 0 0 ${rowAccent(row)}` : undefined }}
+                className={cn('px-4 py-4', onRowClick && 'cursor-pointer active:bg-muted/60')}
+              >
+                {card(row)}
+              </li>
+            ))
+          : Array.from({ length: 4 }, (_, i) => (
+              <li key={i} aria-hidden className="space-y-2 px-4 py-4">
+                <Skeleton className="h-5 w-1/2" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/3" />
+              </li>
+            ))}
+      </ul>
+    <Table className={cn('data-table max-sm:hidden transition-opacity', stale && 'opacity-60')} aria-busy={!rows}>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           {columns.map((c) => (
@@ -91,5 +114,6 @@ export function DataTable<T>({ columns, rows, rowKey, empty, stale, rowAccent, o
             ))}
       </TableBody>
     </Table>
+    </>
   );
 }

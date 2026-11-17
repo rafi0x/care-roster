@@ -51,6 +51,41 @@ export function PatientList({ doctorId, action }: Props) {
 
   // Stable identities so the table and search box do not re-render on unrelated state changes.
   const onSearch = useCallback((search: string) => setParams({ search }), [setParams]);
+  const patientCard = (p: Patient) => (
+    <div className="space-y-1.5">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-base font-semibold">{p.name}</p>
+        <ConditionBadge condition={p.condition} />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {p.age} yrs · {p.gender === 'other' ? 'Other' : p.gender === 'male' ? 'Male' : 'Female'}
+      </p>
+      {!doctorId && (
+        <p className="text-sm">
+          <Link href={`/doctors/${p.doctor.id}`} className="font-medium text-primary underline decoration-primary/40 underline-offset-4">
+            {p.doctor.name}
+          </Link>
+        </p>
+      )}
+      <div className="flex items-center justify-between pt-1 text-sm">
+        <PhoneLink phone={p.phone} />
+        <span className="text-xs text-muted-foreground">Added {formatDate(p.createdAt)}</span>
+      </div>
+      {canWrite && (
+        <div className="-mb-1 flex justify-end gap-1 border-t pt-2">
+          <Button variant="ghost" size="sm" onClick={() => setEditing(p)}>
+            <Pencil aria-hidden />
+            Edit
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setDeleting(p)} className="text-destructive hover:text-destructive">
+            <Trash2 aria-hidden />
+            Delete
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   const columns = useMemo<Column<Patient>[]>(
     () => [
       {
@@ -122,6 +157,7 @@ export function PatientList({ doctorId, action }: Props) {
             columns={columns}
             rows={data?.data}
             rowKey={rowKey}
+            card={patientCard}
             sort={sort}
             onSort={onSort}
             rowAccent={rowAccent}

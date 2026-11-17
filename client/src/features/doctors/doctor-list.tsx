@@ -11,6 +11,7 @@ import { DateRange, FilterBar, FilterSelect, SortSelect } from '@/components/app
 import { ListPagination } from '@/components/app/list-pagination';
 import { ErrorState, PageHeader, Panel } from '@/components/app/page';
 import { SearchInput } from '@/components/app/search-input';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useListParams, useSort } from '@/hooks/use-list-params';
 import { formatDate } from '@/lib/format';
@@ -27,6 +28,27 @@ const SORT_OPTIONS = [
   { key: 'patients', order: 'desc', label: 'Most patients' },
   { key: 'patients', order: 'asc', label: 'Fewest patients' },
 ] as const;
+
+const doctorCard = (d: Doctor) => (
+  <div className="space-y-1.5">
+    <div className="flex items-start justify-between gap-3">
+      <Link href={`/doctors/${d.id}`} className="text-base font-semibold text-primary underline decoration-primary/40 underline-offset-4">
+        {d.name}
+      </Link>
+      <Badge variant="secondary" className="shrink-0 tabular-nums">
+        {d.patientCount} patients
+      </Badge>
+    </div>
+    <p className="text-sm">
+      {d.specialization} <span className="text-muted-foreground">· {d.hospital}</span>
+    </p>
+    <p className="text-sm text-muted-foreground">{d.email}</p>
+    <div className="flex items-center justify-between pt-1 text-sm">
+      <PhoneLink phone={d.phone} />
+      <span className="text-xs text-muted-foreground">Added {formatDate(d.createdAt)}</span>
+    </div>
+  </div>
+);
 
 const columns: Column<Doctor>[] = [
   {
@@ -97,6 +119,7 @@ export function DoctorList() {
               columns={columns}
               rows={data?.data}
               rowKey={rowKey}
+              card={doctorCard}
               sort={sort}
               onSort={onSort}
               onRowClick={(d) => router.push(`/doctors/${d.id}`)}

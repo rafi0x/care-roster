@@ -181,7 +181,7 @@ describe('/api/doctors/:id/patients', () => {
     await api.post('/api/doctors/64b7f0f0f0f0f0f0f0f0f0f0/patients').send(patientInput()).expect(404);
   });
 
-  it('deletes a patient from the doctor’s list, scoped to that doctor', async () => {
+  it('unassigns a patient from the doctor’s list, keeping the record, scoped to that doctor', async () => {
     const doc = await makeDoctor();
     const other = await makeDoctor();
     const mine = await makePatient(doc._id);
@@ -189,7 +189,9 @@ describe('/api/doctors/:id/patients', () => {
 
     await api.delete(`/api/doctors/${doc.id}/patients/${theirs.id}`).expect(404);
     await api.delete(`/api/doctors/${doc.id}/patients/${mine.id}`).expect(204);
-    expect(await Patient.countDocuments()).toBe(1);
+    expect(await Patient.countDocuments()).toBe(2);
+    expect((await Patient.findById(mine.id))?.doctor).toBeNull();
+    expect(String((await Patient.findById(theirs.id))?.doctor)).toBe(String(other._id));
   });
 });
 

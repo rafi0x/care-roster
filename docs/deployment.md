@@ -13,7 +13,7 @@ CareRoster deploys as two pieces:
 flowchart LR
   U[Browser] -->|HTTPS| V[Vercel: Next.js]
   V -->|"/api/* rewrite (HTTPS)"| N[nginx on the VPS]
-  N -->|127.0.0.1:4000| P[pm2: Express API]
+  N -->|127.0.0.1:4100| P[pm2: Express API]
   P --> M[(MongoDB Atlas)]
 ```
 
@@ -38,7 +38,7 @@ Create an environment named **production** (Settings → Environments) and add t
 | Name | Value |
 | --- | --- |
 | `CLIENT_ORIGIN` | The Vercel URL, e.g. `https://carerooster.vercel.app` (no trailing slash) |
-| `TRUST_PROXY` | Optional, default `1`. Use `2` when nginx sits between Vercel and the API (see below) |
+| `TRUST_PROXY` | Proxies in front of the API, default `1`. With Cloudflare and nginx in front it is `3` (see below) |
 
 ## How the API workflow works
 
@@ -65,25 +65,44 @@ sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
 
 Allow the VPS IP in MongoDB Atlas (Network Access).
 
-**TLS is required.** Vercel sends login requests, including passwords, to the API; over plain `http` they cross the internet unencrypted. Point a domain at the VPS and terminate TLS in nginx:
+**TLS is required.** Vercel sends login requests, including passwords, to the API; over plain `http` they cross the internet unencrypted. Point a domain at the VPS and terminate TLS in nginx. The API listens on **4100**, not 4000, because 4000 is already taken by another app on the same VPS (`ss -ltnp` shows what is free). This is the site file in use, `/etc/nginx/sites-available/care-roster-api.porphy.tech`, symlinked into `sites-enabled`:
 
 ```nginx
 server {
-  server_name api.example.com;
-  location / {
-    proxy_pass http://127.0.0.1:4000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
+    listen 80;
+    listen [::]:80;
+    server_name care-roster-api.porphy.tech;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name care-roster-api.porphy.tech;
+
+    ssl_certificate     /etc/ssl/porphy_tech_cert.pem;      # Cloudflare Origin certificate, *.porphy.tech
+    ssl_certificate_key /etc/ssl/porphy_tech_key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 1m;
+
+    location / {
+        proxy_pass http://127.0.0.1:4100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 ```
 
 ```bash
-sudo certbot --nginx -d api.example.com
+sudo nginx -t && sudo nginx -s reload
 ```
 
-With this layout set `TRUST_PROXY=2` (Vercel → nginx → API), otherwise every visitor shares Vercel's IP and the per-IP rate limits would trip for everyone at once. If you skip nginx and expose the API directly, leave it at `1`.
+The certificate is a Cloudflare Origin CA certificate, which only Cloudflare trusts, so the DNS record must be **proxied** (orange cloud) and the zone's SSL/TLS mode must be **Full (strict)**; browsers and Vercel then see Cloudflare's public certificate. Check that no zone-wide Redirect Rule or Page Rule sends this hostname elsewhere (a `301` to another site from `cloudflare` means the request never reached nginx).
+
+Set the GitHub variable `TRUST_PROXY` to the number of proxies in front of the API, otherwise every visitor shares one IP and the per-IP rate limits trip for everyone at once. Vercel → Cloudflare → nginx → API is **3**; without Cloudflare (DNS only) it is 2; with no nginx and the API exposed directly it is 1.
 
 ## Vercel setup
 

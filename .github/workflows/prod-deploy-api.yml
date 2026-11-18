@@ -29,7 +29,7 @@ jobs:
         run: |
           envsubst "`printf '${%s} ' $(sh -c "env|cut -d'=' -f1")`" < ./.env.example > ./.env
         env:
-          PORT: 4000
+          PORT: 4100
           NODE_ENV: production
 
           # Database
@@ -88,4 +88,4 @@ jobs:
             pm2 save
             pm2 status
             sleep 5
-            curl -fsS http://127.0.0.1:4000/api/health
+            curl -fsS http://127.0.0.1:4100/api/health
